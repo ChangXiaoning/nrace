@@ -1,0 +1,143 @@
+def main():
+	print "Begin to parse the trace file ..."
+	traceFile="./test.log"
+	f=open(traceFile)
+	lines=f.readlines()
+	for line in lines:
+		#remove the blank at the begin and end of each line
+		line=line.strip()
+		processLine(line)
+	f.close()
+	pass
+
+LogEntryType={
+	"DECLARE":0,
+	"WRITE":1,
+	"PUTFIELD":2,
+	"READ":10,
+	"GETFIELD":11,
+	"FUNCTION_ENTER":13,
+	"FUNCTION_EXIT":14,
+	"ASYNC_INIT":20,
+	"ASYNC_BEFORE":21,
+	"ASYNC_AFTER":22,
+	"ASYNC_PROMISERESOLVE":23,
+	"SCRIPT_ENTER":32,
+	"SCRIPT_EXIT:33",
+	"SOURCE_MAPPING":35,
+	0:"DECLARE",
+	1:"WRITE",
+	2:"PUTFIELD",
+	10:"READ",
+	11:"GETFIELD",
+	13:"FUNCTION_ENTER",
+	14:"FUNCTION_EXIT",
+	20:"ASYNC_INIT",
+	21:"ASYNC_BEFORE",
+	22:"ASYNC_AFTER",
+	23:"PROMISERESOLVE",
+	32:"SCRIPT_ENTER",
+	33:"SCRIPT_EXIT",
+	35:"SOURCE_MAPPING"
+	}
+
+VarAccessType={
+	"READ":"R",
+	"GETFIELD":"R",
+	"WRITE":"W",
+	"PUTFIELD":"W"
+	}
+
+lineno=0
+
+def processLine (line):
+	#print "content: %s" %(line)
+	lineno++
+	record=None
+	if(line):
+		item=line.split(",");
+		itemEntryType=item[0]
+		if(type(itemEntryType)!="int"):
+			itemEntryType=int(itemEntryType)
+		if(!LogEntryType[itemEntryType]):
+			return
+		itemEntryTypeName=LogEntryType[itemEntryType]
+		if(VarAccessType.has_key(itemEntryTypeName)):
+			record=DataAccessRecord(lineno, itemEntryTypeName, VarAccessType[itemEntryTypeName], item[2], item[3], )
+	pass
+
+class CbStack:
+	'''
+	@stack: store the eid of each callback
+	@cbs: the first record of each execution of a callback, which is used as the location of callback
+	@curCtx: the object <dir> that stores the variables in current scope (curCtx[vars]) and records (curCtx[rcds])
+	'''
+	def __init__(self)
+		self.stack=[]
+		self.cbs={}
+		self.curCtx={}
+		pass
+
+	def top ():
+		return self.stack[len(self.stack)-1]
+		pass
+	def enter (eid):
+		self.stack.append(eid)
+
+
+class DataAccessRecord:
+	count=0
+
+	def __init__ (self, lineno, entryType, accessType, ref, name, eid, iid):
+		self.lineno=lineno
+		self.entryType=entryType
+		self.accessType=accessTYpe
+		self.ref=ref
+		self.name=name
+		self.eid=eid
+		self.iid=iid
+		DataAccessRecord.count++
+		pass
+
+class registerRecord:
+	count=0
+
+	def __init__ (self, lineno, asyncId, prior, resourceType):
+		self.lineno=lineno
+		self.asyncId=asynId
+		self.prior=prior
+		if(resourceType!=None):
+			self.resourceType=resourceType
+			self.priority=getPriority(resourceType)
+		registerRecord.count++
+		pass
+
+'''TODO: priority seems insuitable.'''
+'''FSEVENTWRAP, FSREQWRAP, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPPARSER, JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP, SHUTDOWNWRAP, SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPWRAP, TIMERWRAP, TTYWRAP, UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST, RANDOMBYTESREQUEST, TLSWRAP, Timeout, Immediate, TickObject'''
+ResourcePriority={
+	TickObject:1
+	Timeout:2
+	Immediate:2
+	Other:3
+}
+
+def getPriority(resourceType):
+	if(ResourcePriority.has_key(resourceType)):
+		return ResourcePriority[resourceType]
+	else:
+		return ResourcePriority[Other]
+	pass
+	
+class resolveRecord:
+	count=0
+
+	def __init__(self, lineno, asyncId, prior):
+		self.lineno=lineno
+		self.asyncId=asyncId
+		self.prior=prior
+		resolveRecord.count++
+		pass
+
+if __name__=="__main__":
+	main()
+	pass

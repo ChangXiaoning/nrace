@@ -1,0 +1,8 @@
+*~
+*.swp
+*.log
+*.txt
+node_modules
+*_jalangi_.js
+*_jalangi_.json
+package-lock.json
