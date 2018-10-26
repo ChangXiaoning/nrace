@@ -557,6 +557,10 @@ def processTraceFile (traceFile):
 
 def main():
 	traceFile=sys.argv[1]
+	if sys.argv[2] == 't':
+		isRace=True 
+	else:
+		isRace=False
 	#step 1: parse record into object
 	parsedResult=processTraceFile(traceFile)
 	#print parsedResult
@@ -588,7 +592,11 @@ def main():
 	'''
 	#step 2: find the nearest happens-before relation among callbacks
 	#z3Scheduler.buildConstraints (parsedResult)
-	z3Scheduler.startDebug(parsedResult)
+	#z3Scheduler.startDebug(parsedResult)
+	if isRace:
+		z3Scheduler.startDebug(parsedResult, isRace)
+	else:
+		z3Scheduler.startDebug(parsedResult)
 	pass
 
 lineno=-1
