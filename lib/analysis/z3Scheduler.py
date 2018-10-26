@@ -78,11 +78,15 @@ class Race:
 		self.name=daRcd1.name
 		pass
 
-	def isEqual (self, otherRace):
+	def isEqual_bak (self, otherRace):
 
 		if not otherRace:
 			return False
-		return self.footprint==otherRace.footprint
+		#if self.footprint == otherRace.footprint:
+			#return True
+		if (self.tuple[0].lineno == otherRace.tuple[1].lineno and self.tuple[1].lineno == otherRace[0].lineno) or (self.tuple[0].lineno == otherRace.tuple[0].lineno and self.tuple[1].lineno == otherRace[1].lineno):
+			return True
+		return False
 		pass
 
 	def toString (self, detail=False):
@@ -457,7 +461,7 @@ class Scheduler:
 		'''
 		pass
 
-	def detectRace (self):
+	def detectRace_bak (self):
 
 		for var in self.variables:
 			RList=self.variables[var]['R']
@@ -469,16 +473,41 @@ class Scheduler:
 				for j in range(0, len(WList)):
 					if j==i or not self.isConcurrent_new_1(WList[i], WList[j]):
 						continue
+
 					race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 					self.races.append(race)
 				#detect W race with R
 				for j in range(0, len(RList)):
+					#print '~~~~~~~~enter Rlist'
+					#print 'isConcurrent_new_1(WList[%s], RList[%s]) is: %s' %(i, j, self.isConcurrent_new_1(WList[i], RList[j]))
 					if not self.isConcurrent_new_1(WList[i], RList[j]):
 						continue
 					race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 					self.races.append(race)
 		pass
 
+	def detectRace (self):
+
+		for var in self.variables:
+			RList=self.variables[var]['R']
+			WList=self.variables[var]['W']
+			if len(WList)==0 or len(RList)+len(WList)<2:
+				continue
+			#detect W race with W
+			for i in range(0, len(WList)-1):
+				for j in range(i+1, len(WList)):
+					if not self.isConcurrent_new_1(WList[i], WList[j]):
+						continue
+					race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
+					self.races.append(race)
+			#detect W race with R
+			for i in range(0, len(WList)):
+				for j in range(0, len(RList)):
+					if not self.isConcurrent_new_1(WList[i], RList[j]):
+						continue
+					race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
+					self.races.append(race)
+		pass
 
 	def check (self):
 	#@return <boolean> whether there is a solution
@@ -535,7 +564,7 @@ def startDebug(parsedResult, isRace=False):
 	if not isRace:
 		scheduler.addPatternConstraint()
 		#scheduler.check()
-		scheduler.printReports()
+		scheduler.printReports()	
 	else:
 		scheduler.detectRace()
 		scheduler.printRaces()
