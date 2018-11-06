@@ -188,7 +188,7 @@ class Scheduler:
 
 		pass
 
-	def addPriorityConstraint (self):
+	def addPriorityConstraint_bak (self):
 
 		for cb in self.cbs.values():
 			if not hasattr(cb, 'postCbs'):
@@ -207,6 +207,58 @@ class Scheduler:
 				for cb1 in cbList1:
 					for cb2 in cbList2:
 						self.solver.add(self.grid[self.cbs[cb1].start]<self.grid[self.cbs[cb2].start])
+		pass
+
+	def addPriorityConstraint (self):
+
+		'''
+		for cb in self.cbs.values():
+			printObj(cb)
+		'''
+		#asynIds=self.cbs.keys()
+		asynIds=map(lambda x: int(x), self.cbs.keys())
+		asynIds.sort()
+		#asynIds=map(lambda x: str(x), map(lambda y: int(y), self.cbs.keys()).sort())
+		asynIds=map(lambda x: str(x), asynIds)
+		#print asynIds
+		#not consider the glocal script callback
+		for i in range(1, len(asynIds)-1):
+			for j in range(i+1, len(asynIds)):
+				#print "********asyncId[i] is: %s, asyncId[j] is: %s" %(asynIds[i], asynIds[j])
+				#same priority && not consider I/O callbacks
+				if self.cbs[asynIds[i]].priority==self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority!=3:
+					#same prior (father)
+					if self.cbs[asynIds[i]].prior==self.cbs[asynIds[j]].prior:
+						if self.cbs[asynIds[i]].register < self.cbs[asynIds[j]].register:
+							self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
+							#print '1. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
+						else:
+							self.solver.add(self.grid[self.cbs[asynIds[i]].start]>self.grid[self.cbs[asynIds[j]].start])
+							#print '2. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
+					#different prior (father)
+					#check whether their father have happensBefore relation
+					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[i]].prior], self.cbs[self.cbs[asynIds[j]].prior]):
+						self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
+						#print '3. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
+					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[j]].prior], self.cbs[self.cbs[asynIds[i]].prior]):
+						self.solver.add(self.grid[self.cbs[asynIds[j]].start]<self.grid[self.cbs[asynIds[i]].start])
+						#print '4. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
+				#different priority and one of them is of priority 1
+				elif (self.cbs[asynIds[i]].priority!=self.cbs[asynIds[j]].priority and (self.cbs[asynIds[i]].priority=='1' or self.cbs[asynIds[j]].priority=='1')):
+					if self.cbs[asynIds[i]].priority=='1':
+						ealier=asyncId[i]
+						later=asynIds[j]
+					else:
+						ealier=asynIds[j]
+						later=asynIds[i]
+					#same prior (father)
+					if self.cbs[ealier].prior==self.cbs[later].prior:
+						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
+						#print '5. add a constraint: cb_%s<cb_%s' %(ealier, later)
+					#different prior (father)
+					elif self.cbHappensBefore(self.cbs[self.cbs[ealier].prior], self.cbs[self.cbs[later].prior]):
+						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
+						#print '6. add a constraint: cb_%s<cb_%s' %(ealier, later)
 		pass
 
 	def reorder (self, lineno1, lineno2):
@@ -283,6 +335,26 @@ class Scheduler:
 		if res:
 			return False
 		else: 
+			return True
+		pass
+
+	def cbHappensBefore (self, cb1, cb2):
+
+		if cb1==None or cb2==None or cb1==cb2:
+			return False
+		self.solver.push()
+		self.solver.add(self.grid[cb1.start]<self.grid[cb2.start])
+		res=self.check()
+		self.solver.pop()
+		if not res:
+			return False
+		self.solver.push()
+		self.solver.add(self.grid[cb1.start]>self.grid[cb2.start])
+		res=self.check()
+		self.solver.pop()
+		if res:
+			return False
+		else:
 			return True
 		pass
 
