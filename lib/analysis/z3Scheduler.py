@@ -225,8 +225,8 @@ class Scheduler:
 		for i in range(1, len(asynIds)-1):
 			for j in range(i+1, len(asynIds)):
 				#print "********asyncId[i] is: %s, asyncId[j] is: %s" %(asynIds[i], asynIds[j])
-				#same priority && not consider I/O callbacks
-				if self.cbs[asynIds[i]].priority==self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority!=3:
+				#same priority && not consider I/O callbacks && not consider setTimeout
+				if self.cbs[asynIds[i]].priority==self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority!=3 and self.cbs[asynIds[i]].priority!=2:
 					#same prior (father)
 					if self.cbs[asynIds[i]].prior==self.cbs[asynIds[j]].prior:
 						if self.cbs[asynIds[i]].register < self.cbs[asynIds[j]].register:
