@@ -244,8 +244,9 @@ class Scheduler:
 						self.solver.add(self.grid[self.cbs[asynIds[j]].start]<self.grid[self.cbs[asynIds[i]].start])
 						#print '4. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
 				#different priority and one of them is of priority 1
-				elif (self.cbs[asynIds[i]].priority!=self.cbs[asynIds[j]].priority and (self.cbs[asynIds[i]].priority=='1' or self.cbs[asynIds[j]].priority=='1')):
-					if self.cbs[asynIds[i]].priority=='1':
+				#change: priority 0
+				elif (self.cbs[asynIds[i]].priority!=self.cbs[asynIds[j]].priority and (self.cbs[asynIds[i]].priority=='0' or self.cbs[asynIds[j]].priority=='0')):
+					if self.cbs[asynIds[i]].priority=='0':
 						ealier=asyncId[i]
 						later=asynIds[j]
 					else:
@@ -259,6 +260,10 @@ class Scheduler:
 					elif self.cbHappensBefore(self.cbs[self.cbs[ealier].prior], self.cbs[self.cbs[later].prior]):
 						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
 						#print '6. add a constraint: cb_%s<cb_%s' %(ealier, later)
+		pass
+
+	def addsetTimeoutPriority (self):
+
 		pass
 
 	def reorder (self, lineno1, lineno2):
