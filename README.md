@@ -1,6 +1,6 @@
 NodeRacer is a dynamic tool to detect event races and atomicity violations for event-driven Node.js applications.  
 
-#Setup  
+# Setup  
 
 ##Configure git and download NodeRacer  
 
