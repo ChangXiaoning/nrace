@@ -2,7 +2,7 @@ NodeRacer is a dynamic tool to detect event races and atomicity violations for e
 
 # Setup  
 
-##Configure git and download NodeRacer  
+## Configure git and download NodeRacer  
 
 ```
 $ ssh-keygen -t rsa -C "youremail@example.com"
@@ -11,16 +11,16 @@ $ git config --global user.name "bob"
 $ git config --global user.email bob@...
 $ git clone git@gitlab.com:xnChang94/nodeav.git NodeRacer
 ```
-##Build NodeRacer
+## Build NodeRacer
 ```
 $ cd avdetector
 $ npm install
 ```
 
-##Find your Node.js
+## Find your Node.js  
 `$ whereis nodejs`
 
-##Find your Python
+## Find your Python  
 `$ whereis python`
 
 ## Configure the command of NodeRacer
@@ -29,7 +29,7 @@ $ cd evaluation
 $ vim avd	//modify the path of NODEJS and CMD
 ```
 
-##Inspect your code
+## Inspect your code  
 ```
 $ cd evaluation 
 $ mkdir dataset	//put your code to be tested in directory dataset
