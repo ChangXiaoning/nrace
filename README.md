@@ -1,6 +1,9 @@
-NodeRacer is a dynamic tool to detect event races and atomicity violations for event-driven Node.js applications.
-#Setup
-##Configure git and download NodeRacer
+NodeRacer is a dynamic tool to detect event races and atomicity violations for event-driven Node.js applications.  
+
+#Setup  
+
+##Configure git and download NodeRacer  
+
 ```
 $ ssh-keygen -t rsa -C "youremail@example.com"
 $ cat id_rsa.pub | xclip	//add the public key into your gitlab account
