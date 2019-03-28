@@ -210,7 +210,7 @@ class Scheduler:
 		pass
 
 	def addPriorityConstraint (self):
-
+		#TODO: TIMEOUT and I/O
 		'''
 		for cb in self.cbs.values():
 			printObj(cb)
@@ -263,6 +263,11 @@ class Scheduler:
 		pass
 
 	def addsetTimeoutPriority (self):
+		#TODO
+		pass
+
+	def addIOConstraint (self):
+		#TODO
 
 		pass
 
