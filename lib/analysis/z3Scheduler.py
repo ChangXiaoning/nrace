@@ -173,7 +173,7 @@ class Scheduler:
 		'''
 		pass
 
-	def addAtomicityConstraint (self):
+	def addProgramAtomicityConstraint (self):
 
 		for cb in self.cbs.values():
 			for key in range(0, len(cb.instructions)-1):
