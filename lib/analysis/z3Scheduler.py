@@ -654,8 +654,10 @@ class Scheduler:
 		startToCb = dict()
 		for asyncId in self.cbs:
 			startToCb[self.cbs[asyncId].start] = asyncId 
-
-		for cb in self.cbs:
+		
+		#print self.cbs
+		for cb in self.cbs.values():
+			#print cb
 			if model[self.grid[cb.start]] < rcd:
 				chain.append(startToCb[start])
 
