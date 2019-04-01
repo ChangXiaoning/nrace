@@ -649,7 +649,7 @@ class Scheduler:
 		
 		chain = list()
 		model = self.solver.model()
-		rcd = model[self.grid[lineno]]
+		rcd = model[self.grid[lineno]].as_long()
 		
 		startToCb = dict()
 		for asyncId in self.cbs:
@@ -658,7 +658,7 @@ class Scheduler:
 		#print self.cbs
 		for cb in self.cbs.values():
 			#print cb
-			if model[self.grid[cb.start]] < rcd:
+			if model[self.grid[cb.start]].as_long() < rcd:
 				chain.append(startToCb[start])
 
 		return chain
