@@ -573,6 +573,10 @@ def main():
 		isRace=True 
 	else:
 		isRace=False
+	if sys.argv[3] == 't':
+		isChain = True
+	else:
+		isChain = False
 	#step 1: parse record into object
 	parsedResult=processTraceFile(traceFile)
 	#print parsedResult
@@ -605,10 +609,7 @@ def main():
 	#step 2: find the nearest happens-before relation among callbacks
 	#z3Scheduler.buildConstraints (parsedResult)
 	#z3Scheduler.startDebug(parsedResult)
-	if isRace:
-		z3Scheduler.startDebug(parsedResult, isRace)
-	else:
-		z3Scheduler.startDebug(parsedResult)
+	z3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 lineno=-1
