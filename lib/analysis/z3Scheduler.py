@@ -100,16 +100,18 @@ class Race:
 		pass
 	
 	def chainToString (self):
-		
+	
+		print self.chain1
 		res = '======chain[1]=====\n'
 		for item in self.chain1:
-			res += item + '-> '
+			res += item + ' -> '
 		res += '\n'
 
-		res = '======chain[2]=====\n'
+		res += '======chain[2]=====\n'
 		for item in self.chain1:
-			res += item + '-> '
+			res += item + ' -> '
 		res += '\n'
+		return res
 		pass
 
 class Scheduler:
@@ -625,7 +627,8 @@ class Scheduler:
 		pass
 
 	def printScheduleResult (self):
-
+		
+		print("======Schedule Result======")
 		model=self.solver.model()
 		for instruction in self.grid:
 			print 'instruction_for_%s is: %s' %(instruction, model[self.grid[instruction]])
@@ -649,18 +652,25 @@ class Scheduler:
 		
 		chain = list()
 		model = self.solver.model()
+		self.printScheduleResult()
 		rcd = model[self.grid[lineno]].as_long()
-		
+		#print('lineno is: ', lineno)
+		#print('rcd is: %d', rcd)
+		'''	
 		startToCb = dict()
 		for asyncId in self.cbs:
 			startToCb[self.cbs[asyncId].start] = asyncId 
-		
+		'''
 		#print self.cbs
 		for cb in self.cbs.values():
 			#print cb
+			#print('cb.start: ', cb.start)
+			#print('model[self.grid[cb.start]].as_long(): ', model[self.grid[cb.start]].as_long())
 			if model[self.grid[cb.start]].as_long() < rcd:
-				chain.append(startToCb[start])
-
+				chain.append(cb.asyncId)
+				#print chain
+		chain.sort()
+		#print('After search, chain is: ', chain)
 		return chain
 
 		pass
@@ -672,6 +682,8 @@ class Scheduler:
 		for i in range(0, len(self.races)):
 			info+='['+str(i+1)+']'+self.races[i].toString()+'\n\n'
 			if (isChain):
+				#print self.races[i]
+				#print self.races[i].chainToString()
 				info += self.races[i].chainToString() + '\n' 
 		print info
 		pass
