@@ -81,8 +81,36 @@ VarAccessType={
 	"READ":"R",
 	"GETFIELD":"R",
 	"WRITE":"W",
-	"PUTFIELD":"W"
-	}
+	"PUTFIELD":"W",
+	"FS_CREATE": "C",
+	"FS_DELETE": "D",
+	"FS_READ": "R",
+	"FS_WRITE": "W",
+	"FS_OPEN": "O",
+	"FS_CLOSE": "X",
+	"FS_STAT": "S"
+}
+
+_fsPattern = {
+	"C": ["D", "R", "O", "S"],
+	"D": ["C", "R", "W", "O", "X", "S"],
+	"R": ["C", "D", "W"],
+	"W": ["D", "R"],
+	"O": ["C", "D", "X"],
+	"X": ["D", "O"],
+	"S": ["C", "D"]
+}
+
+def isFsRace (rcd1, rcd2):
+	'''
+	@param <DataAccessRecord>
+	@return <Boolean>: to check whether rcd1 and rcd2 form an event race pair
+	'''
+	if rcd2.accessType in _fsPattern[rcd1.accessType]:
+		return True
+	else:
+		return False
+	pass
 
 ResourcePriority_bak={
 	#TODO: priority seems insuitable.
