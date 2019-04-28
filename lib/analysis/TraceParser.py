@@ -77,11 +77,14 @@ LogEntryType={
 	35:"SOURCE_MAPPING"
 	}
 
-VarAccessType={
+VarAccessType = {
 	"READ":"R",
 	"GETFIELD":"R",
 	"WRITE":"W",
-	"PUTFIELD":"W",
+	"PUTFIELD":"W"
+}
+
+FileAccessType = {
 	"FS_CREATE": "C",
 	"FS_DELETE": "D",
 	"FS_READ": "R",
@@ -431,6 +434,20 @@ class DataAccessRecord:
 		return print_obj(self, ['lineno', 'location', 'cbLoc', 'iid', 'accessType', 'logEntryType', 'ref', 'name', 'eid', 'etp'])
 		pass
 
+class FileAccessRecord:
+
+	def __init__ (self, lineno, entryType, accessType, resource, ref, name, eid, location, isAsync):
+		self.lineno = lineno
+		self.entryType = entryType
+		self.accessType = accessType
+		self.resource = resource
+		self.ref = ref
+		self.name = name
+		self.eid = eid
+		self.location = location
+		self.isAsync = isAsync
+		pass
+
 class StartandEndRecord:
 
 	def __init__ (self, asyncId, insType, lineno):
@@ -470,6 +487,8 @@ def processLine (line):
 			#cbCtx.saveDA(record)
 			#cbCtx.cbs[cbCtx.top()].addRecord(record)
 			#cbCtx.addDARecord(record)
+		elif FileAccessType.has_key(itemEntryTypeName):
+			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], item[6])
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:
 			#record=HappensBeforeRecord(lineno, item[1], item[3], 'register', item[2])
 			#constraints.append(Constraint(item[1], item[3]))
