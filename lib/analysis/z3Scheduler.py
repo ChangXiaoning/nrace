@@ -122,6 +122,7 @@ class Scheduler:
 		self.cbs=parsedResult['cbs']
 		self.records=parsedResult['records']
 		self.variables=parsedResult['vars']
+		self.files = parsedResult['files']
 		self.reports=list()
 		self.races=list()
 		pass
@@ -606,6 +607,14 @@ class Scheduler:
 						continue
 					race=Race('W_R', self.records[WList[i]], self.records[RList[j]], self.searchCbChain(WList[i]), self.searchCbChain(RList[j]))
 					self.races.append(race)
+		pass
+	
+	def detectFileRace (self):
+		for f in self.files:
+			accessList = self.files[f]
+			for i in range(0, len(accessList) - 1):
+				for j in range(i + 1, len(accessList)):
+
 		pass
 
 	def check (self):

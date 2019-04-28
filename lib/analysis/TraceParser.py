@@ -61,6 +61,13 @@ LogEntryType={
 	"SCRIPT_ENTER":32,
 	"SCRIPT_EXIT":33,
 	"SOURCE_MAPPING":35,
+	"FS_OPEN": 40,
+	"FS_READ": 41,
+	"FS_WRITE": 42,
+	"FS_CLOSE": 43,
+	"FS_DELETE": 44,
+	"FS_CREATE": 45,
+	"FS_STAT": 46
 	0:"DECLARE",
 	1:"WRITE",
 	2:"PUTFIELD",
@@ -74,8 +81,15 @@ LogEntryType={
 	23:"PROMISERESOLVE",
 	32:"SCRIPT_ENTER",
 	33:"SCRIPT_EXIT",
-	35:"SOURCE_MAPPING"
-	}
+	35:"SOURCE_MAPPING",
+	40: "FS_OPEN",
+	41:"FS_READ",
+	42: "FS_WRITE",
+	43: "FS_CLOSE",
+	44: "FS_DELETE",
+	45: "FS_CREATE",
+	46: "FS_STAT"
+}
 
 VarAccessType = {
 	"READ":"R",
@@ -213,6 +227,8 @@ class CbStack:
 		#all data access records are stored in self.records property, indexed by lineno
 		self.records=dict()
 		self.vars=dict()
+		#all file access records are stored in self.files property, indexed by file
+		self.files = dict()
 		pass
 
 	def top (self):
@@ -252,6 +268,13 @@ class CbStack:
 		self.records[rcd.lineno]=rcd
 		if isinstance(rcd, DataAccessRecord):
 			self.addInVars_new(rcd)
+		pass
+
+	def addFileRecord (self, rcd):
+		fileId = rcd.getId()
+		if not self.files.has_key(fileId):
+			self.files[fileId] = list()
+		self.files[fileId].append(rcd)
 		pass
 
 	def addInVars (self, daRcd):
@@ -448,6 +471,10 @@ class FileAccessRecord:
 		self.isAsync = isAsync
 		pass
 
+	def getId (self):
+		return self.resource
+		pass
+
 class StartandEndRecord:
 
 	def __init__ (self, asyncId, insType, lineno):
@@ -553,11 +580,12 @@ def processLine (line):
 			funCtx.declare(item[3])
 
 	#add following information for each data accessing record: location, isDeclaredLocal, etp and cbLoc
-	if isinstance(record, DataAccessRecord):
+	if isinstance(record, DataAccessRecord) or isinstance(record, FileAccessRecord):
 		#location
 		conj='#'
 		#print 'sourceMap[record.%s] is: %s\n' %(record.iid, sourceMap[record.iid])
-		record.location=conj.join(sourceMap[record.iid])
+		if not hasattr(record, location):
+			record.location=conj.join(sourceMap[record.iid])
 		#isDeclaredLocal
 		record.isDeclaredLocal=funCtx.isDeclaredLocal(record.name)
 		#etp/TODO
@@ -572,9 +600,13 @@ def processLine (line):
 		cbLoc=env.getCbLoc()
 		record.cbLoc=cbLoc if cbLoc else record.location
 		#record.cbLoc=cbCtx.cbs[cbCtx.top()].getCbLoc()
-
-		cbCtx.addDARecord(record)
-		cbCtx.cbs[cbCtx.top()].addRecord(record)
+	
+		if isinstance(record, DataAccessRecord):
+			cbCtx.addDARecord(record)
+			cbCtx.cbs[cbCtx.top()].addRecord(record)
+		else:
+			cbCtx.addFileRecord(record)
+			cbCtx.cbs[cbCtx.top()].addRecord(record)
 	pass
 
 def processTraceFile (traceFile):
@@ -611,6 +643,7 @@ def processTraceFile (traceFile):
 	result['cbs']=cbCtx.cbs
 	result['records']=cbCtx.records
 	result['vars']=cbCtx.vars
+	result['files'] = cbCtx.files
 	return result
 	pass
 
