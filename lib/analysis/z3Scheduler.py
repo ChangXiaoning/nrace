@@ -114,6 +114,21 @@ class Race:
 		return res
 		pass
 
+_fsPattern = {
+	"C": ["D", "R", "O", "S"],
+	"D": ["C", "R", "W", "O", "X", "S"],
+	"R": ["C", "D", "W"],
+	"W": ["D", "R"],
+	"O": ["C", "D", "X"],
+	"X": ["D", "O"],
+	"S": ["C", "D"] 
+}
+
+def matchFileRacePattern (self, rcd1, rcd2):
+	# @return <Boolean>
+	return rcd2.accessType in _fsPattern[rcd1.accessType]
+	pass
+
 class Scheduler:
 
 	def __init__ (self, parsedResult):
@@ -614,7 +629,10 @@ class Scheduler:
 			accessList = self.files[f]
 			for i in range(0, len(accessList) - 1):
 				for j in range(i + 1, len(accessList)):
+					if matchFileRacePattern(accessList[i], accessList[j]):
+						#if file access accessList[i] and accessList[j] are async
 
+						#if file access accessList[i] and accessList[j] are sync
 		pass
 
 	def check (self):
