@@ -475,12 +475,30 @@ class FileAccessRecord:
 		return self.resource
 		pass
 
+	def toString (self):
+		return print_obj(self, ['lineno', 'entryType', 'accessType', 'resource', 'ref', 'name', 'eid', 'location', 'isAsync'])
+		pass
+
 class StartandEndRecord:
 
 	def __init__ (self, asyncId, insType, lineno):
 		self.asyncId=asyncId
 		self.type=insType
 		self.lineno=lineno
+		pass
+
+class FileCbStack:
+
+	def __init__ (self):
+		self.stack = list()
+		pass
+
+	def push (self, fileOp):
+		self.stack.append()
+		pass
+
+	def pop (self):
+		return self.stack.pop()
 		pass
 
 def processLine (line):
@@ -516,11 +534,16 @@ def processLine (line):
 			#cbCtx.addDARecord(record)
 		elif FileAccessType.has_key(itemEntryTypeName):
 			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], item[6])
+			#associate asynchronous file operation with its callback
+			if record.isAsync = true:
+				fileCtx.push(record)	
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:
 			#record=HappensBeforeRecord(lineno, item[1], item[3], 'register', item[2])
 			#constraints.append(Constraint(item[1], item[3]))
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
+			#associate asynchronous file operation with its callback
+			fileCtx.pop().cb = item[1] 
 		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:
 			#logger.debug('enter the cb-%s' %(item[1]))
 			#logger.debug('current cbs is: ')
@@ -698,6 +721,7 @@ currentSourceFile=None
 funCtx=FunStack()
 cbCtx=CbStack()
 #records=dict()
+fileCtx = FileCbStack()
 
 if __name__=="__main__":
 	main()
