@@ -67,7 +67,7 @@ LogEntryType={
 	"FS_CLOSE": 43,
 	"FS_DELETE": 44,
 	"FS_CREATE": 45,
-	"FS_STAT": 46
+	"FS_STAT": 46,
 	0:"DECLARE",
 	1:"WRITE",
 	2:"PUTFIELD",
@@ -229,6 +229,8 @@ class CbStack:
 		self.vars=dict()
 		#all file access records are stored in self.files property, indexed by file
 		self.files = dict()
+		#save callback in initialized order
+		self.cbForFile = list()
 		pass
 
 	def top (self):
@@ -262,8 +264,14 @@ class CbStack:
 			#note: it is possible for the global script to register callbacks after the script exit
 			if not hasattr(self.cbs[cb.prior], 'end'):
 				self.cbs[cb.prior].addInstruction(cb.register)
+		#3.save cb in initialized order to associate file operation with its cb
+		self.cbForFile.append(cb.asyncId)
 		pass
-
+	
+	def getNewestCb (self):
+		# return the asyncId of last initialized callback
+		return self.cbForFile[len(self.cbForFile)-1]
+		pass
 	def addDARecord (self, rcd):
 		self.records[rcd.lineno]=rcd
 		if isinstance(rcd, DataAccessRecord):
@@ -494,11 +502,23 @@ class FileCbStack:
 		pass
 
 	def push (self, fileOp):
+		print "Before push self.stack is: "
+		print self.stack
 		self.stack.append()
+		print "After push self.stack is: "
+		print self.stack
 		pass
 
 	def pop (self):
+		print "Before pop self.stack is: "
+		print self.stack
 		return self.stack.pop()
+		pass
+
+	def top (self):
+		print "In top self.stack is: "
+		print self.stack
+		return self.stack[len(self.stack)-1] 
 		pass
 
 def processLine (line):
@@ -533,17 +553,24 @@ def processLine (line):
 			#cbCtx.cbs[cbCtx.top()].addRecord(record)
 			#cbCtx.addDARecord(record)
 		elif FileAccessType.has_key(itemEntryTypeName):
-			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], item[6])
+			#To reduce the size of trace file, isAsync is recorded as 1 or 0
+			if item[6] == 1:
+				isAsync = True
+			else:
+				isAsync = False
+			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], isAsync)
+			#print print_obj(record,['isAsync'])
 			#associate asynchronous file operation with its callback
-			if record.isAsync = true:
-				fileCtx.push(record)	
+			#print record.isAsync
+			if record.isAsync == True:
+				#fileCtx.push(record)
+				#associate asynchronous file operation with its callback
+				record.cb = cbCtx.getNewestCb()	
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:
 			#record=HappensBeforeRecord(lineno, item[1], item[3], 'register', item[2])
 			#constraints.append(Constraint(item[1], item[3]))
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
-			#associate asynchronous file operation with its callback
-			fileCtx.pop().cb = item[1] 
 		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:
 			#logger.debug('enter the cb-%s' %(item[1]))
 			#logger.debug('current cbs is: ')
@@ -607,7 +634,7 @@ def processLine (line):
 		#location
 		conj='#'
 		#print 'sourceMap[record.%s] is: %s\n' %(record.iid, sourceMap[record.iid])
-		if not hasattr(record, location):
+		if not hasattr(record, 'location'):
 			record.location=conj.join(sourceMap[record.iid])
 		#isDeclaredLocal
 		record.isDeclaredLocal=funCtx.isDeclaredLocal(record.name)

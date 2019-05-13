@@ -2,6 +2,9 @@ import sys
 import os
 import TraceParser
 import Logging
+from TraceParser import FileAccessRecord
+from TraceParser import DataAccessRecord
+from TraceParser import print_obj
 
 logger=Logging.logger
 
@@ -69,7 +72,8 @@ class Report:
 
 class Race:
 
-	def __init__ (self, pattern, rcd1, rcd2''', chain1, chain2'''):
+	#def __init__ (self, pattern, rcd1, rcd2''', chain1, chain2'''):
+	def __init__ (self, pattern, rcd1, rcd2):
 
 		self.pattern=pattern
 		self.tuple=[rcd1, rcd2]
@@ -304,10 +308,15 @@ class Scheduler:
 		pass
 
 	def addFsConstraint (self):
-		for rcd in self.records:
-			if not isinstance(rcd, FileAccessRecord) and rcd.isAsync == False:
-				continue
-			self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])
+		#print '=====addFSconstraint====='
+		for rcd in self.records.values():
+			#print rcd
+			#print print_obj(rcd, ['isAsync'])
+			if isinstance(rcd, FileAccessRecord) and rcd.isAsync == True:	
+				#constraint 1: asynchronous file operation happens after the callback that launches it
+				self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
+				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
+				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])
 		pass
 
 	def reorder (self, lineno1, lineno2):
@@ -619,14 +628,16 @@ class Scheduler:
 				for j in range(i+1, len(WList)):
 					if not self.isConcurrent_new_1(WList[i], WList[j]):
 						continue
-					race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
+					#race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
+					race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 					self.races.append(race)
 			#detect W race with R
 			for i in range(0, len(WList)):
 				for j in range(0, len(RList)):
 					if not self.isConcurrent_new_1(WList[i], RList[j]):
 						continue
-					race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
+					#race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
+					race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 					self.races.append(race)
 		pass
 	
@@ -739,6 +750,7 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addProgramAtomicityConstraint()
 	scheduler.addRegisterandResolveConstraint()
 	scheduler.addPriorityConstraint()
+	scheduler.addFsConstraint()
 	if not isRace:
 		scheduler.addPatternConstraint()
 		#scheduler.check()
