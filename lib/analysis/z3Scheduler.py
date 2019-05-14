@@ -154,6 +154,12 @@ class Scheduler:
 		cbs=self.cbs
 		#print cbs
 		for cb in cbs.values():
+			print cb.asyncId
+			printObj(cb)
+		
+		#To capture the callback chain for file operations, we cannot remove callbacks that have no records
+		'''
+		for cb in cbs.values():
 			if len(cb.records)>0:
 				continue
 		
@@ -168,7 +174,7 @@ class Scheduler:
 					cbs[cb.prior].instructions.remove(cb.register)
 			#3. remove it in cbs
 			del cbs[cb.asyncId]
-
+		'''
 		#if a callback list in prior.postCbs is empty, remove it
 		for cb in cbs.values():
 			for priority in cb.postCbs.keys():
@@ -183,7 +189,7 @@ class Scheduler:
 		print '11111111111self.cbs is:'
 		for cb in self.cbs.values():
 			printObj(cb)
-		'''
+		'''	
 		pass
 
 	def createOrderVariables (self):
@@ -221,12 +227,27 @@ class Scheduler:
 				self.solver.add(self.grid[cb.instructions[key]]==self.grid[cb.instructions[key+1]]-1)
 		#print self.solver
 		pass
+	
+	def printConstraint (self, consName, lineno_1, lineno_2):
+		print consName.upper() + ': ' + str(lineno_1) + ' < ' + str(lineno_2)
+		pass
+
+	def printCbCons (self, consName, cb_1, cb_2):
+		print consName.upper() + ': ' + str(cb_1) + ' < ' + str(cb_2)
+		pass
 
 	def addRegisterandResolveConstraint (self):
-
+	
+		#print self.cbs
+		consName = 'RegisterandResolve'
 		for cb in self.cbs.values():
-			self.solver.add(self.grid[cb.register]<self.grid[cb.start])
-
+			#print 'In addRegisterCons'
+			#print cb.asyncId
+			#printObj(cb)
+			if hasattr(cb, 'start'):
+				self.solver.add(self.grid[cb.register]<self.grid[cb.start])
+				#self.printConstraint(consName, cb.register, cb.start)
+				self.printCbCons(consName, cb.prior, cb.asyncId)
 		pass
 
 	def addPriorityConstraint_bak (self):
@@ -308,15 +329,25 @@ class Scheduler:
 		pass
 
 	def addFsConstraint (self):
-		#print '=====addFSconstraint====='
+		print '=====addFSconstraint====='
+		consName = 'fsConstraint'
 		for rcd in self.records.values():
-			#print rcd
+			
+			printObj(rcd)
+			print type(rcd)
+			print isinstance(rcd, FileAccessRecord)
+			if isinstance(rcd, FileAccessRecord):
+				print 'THIS IS A FILE ACCESS RECORD'
+				printObj(rcd)
+			
 			#print print_obj(rcd, ['isAsync'])
 			if isinstance(rcd, FileAccessRecord) and rcd.isAsync == True:	
 				#constraint 1: asynchronous file operation happens after the callback that launches it
 				self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
+				self.printConstraint(consName, rcd.eid, rcd.lineno)
 				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
 				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])
+				self.printConstraint(consName, rcd.lineno, rcd.cb.asyncId)
 		pass
 
 	def reorder (self, lineno1, lineno2):

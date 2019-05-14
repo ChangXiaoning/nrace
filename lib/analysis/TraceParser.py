@@ -224,7 +224,7 @@ class CbStack:
 	def __init__ (self):
 		self.stack=list()
 		self.cbs=dict()
-		#all data access records are stored in self.records property, indexed by lineno
+		#all data access records and file access records are stored in self.records property, indexed by lineno
 		self.records=dict()
 		self.vars=dict()
 		#all file access records are stored in self.files property, indexed by file
@@ -272,6 +272,7 @@ class CbStack:
 		# return the asyncId of last initialized callback
 		return self.cbForFile[len(self.cbForFile)-1]
 		pass
+
 	def addDARecord (self, rcd):
 		self.records[rcd.lineno]=rcd
 		if isinstance(rcd, DataAccessRecord):
@@ -279,6 +280,8 @@ class CbStack:
 		pass
 
 	def addFileRecord (self, rcd):
+		#print 'ADD A FILE RECORD'
+		self.records[rcd.lineno] = rcd
 		fileId = rcd.getId()
 		if not self.files.has_key(fileId):
 			self.files[fileId] = list()
@@ -553,8 +556,9 @@ def processLine (line):
 			#cbCtx.cbs[cbCtx.top()].addRecord(record)
 			#cbCtx.addDARecord(record)
 		elif FileAccessType.has_key(itemEntryTypeName):
+			#print 'CREATE A FILEACCESSRECORD'
 			#To reduce the size of trace file, isAsync is recorded as 1 or 0
-			if item[6] == 1:
+			if item[6] == '1':
 				isAsync = True
 			else:
 				isAsync = False
