@@ -468,7 +468,7 @@ class DataAccessRecord:
 		return print_obj(self, ['lineno', 'location', 'cbLoc', 'iid', 'accessType', 'logEntryType', 'ref', 'name', 'eid', 'etp'])
 		pass
 
-class FileAccessRecord:
+class FileAccessRecord (object):
 
 	def __init__ (self, lineno, entryType, accessType, resource, ref, name, eid, location, isAsync):
 		self.lineno = lineno
@@ -563,9 +563,6 @@ def processLine (line):
 			else:
 				isAsync = False
 			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], isAsync)
-			#print print_obj(record,['isAsync'])
-			#associate asynchronous file operation with its callback
-			#print record.isAsync
 			if record.isAsync == True:
 				#fileCtx.push(record)
 				#associate asynchronous file operation with its callback
@@ -753,7 +750,8 @@ funCtx=FunStack()
 cbCtx=CbStack()
 #records=dict()
 fileCtx = FileCbStack()
-
+'''
 if __name__=="__main__":
 	main()
 	pass
+'''

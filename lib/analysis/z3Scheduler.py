@@ -2,9 +2,9 @@ import sys
 import os
 import TraceParser
 import Logging
-from TraceParser import FileAccessRecord
-from TraceParser import DataAccessRecord
-from TraceParser import print_obj
+#from TraceParser import FileAccessRecord
+#from TraceParser import DataAccessRecord
+#from TraceParser import print_obj
 
 logger=Logging.logger
 
@@ -78,10 +78,10 @@ class Race:
 		self.pattern=pattern
 		self.tuple=[rcd1, rcd2]
 		self.footprint=self.tuple[0].cbLoc+' vs. '+self.tuple[1].cbLoc
-		if isinstance(rcd1, DataAccessRecord):
+		if isinstance(rcd1, TraceParser.DataAccessRecord):
 			self.ref=rcd1.ref
 			self.name=rcd1.name
-		if isinstance(rcd1, FileAccessRecord):
+		if isinstance(rcd1, TraceParser.FileAccessRecord):
 			self.ref = 'file'
 			self.name = rcd1.resource
 		#self.chain1 = chain1
@@ -153,10 +153,11 @@ class Scheduler:
 	def filterCbs (self):
 		cbs=self.cbs
 		#print cbs
+		'''
 		for cb in cbs.values():
 			print cb.asyncId
 			printObj(cb)
-		
+		'''
 		#To capture the callback chain for file operations, we cannot remove callbacks that have no records
 		'''
 		for cb in cbs.values():
@@ -332,22 +333,13 @@ class Scheduler:
 		print '=====addFSconstraint====='
 		consName = 'fsConstraint'
 		for rcd in self.records.values():
-			
-			printObj(rcd)
-			print type(rcd)
-			print isinstance(rcd, FileAccessRecord)
-			if isinstance(rcd, FileAccessRecord):
-				print 'THIS IS A FILE ACCESS RECORD'
-				printObj(rcd)
-			
-			#print print_obj(rcd, ['isAsync'])
-			if isinstance(rcd, FileAccessRecord) and rcd.isAsync == True:	
+			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
 				#constraint 1: asynchronous file operation happens after the callback that launches it
 				self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
-				self.printConstraint(consName, rcd.eid, rcd.lineno)
+				self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
 				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
-				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])
-				self.printConstraint(consName, rcd.lineno, rcd.cb.asyncId)
+				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
+				self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
 		pass
 
 	def reorder (self, lineno1, lineno2):
