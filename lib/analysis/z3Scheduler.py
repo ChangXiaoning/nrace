@@ -222,9 +222,23 @@ class Scheduler:
 		pass
 
 	def addProgramAtomicityConstraint (self):
-
+		consName = 'Atomicity'
 		for cb in self.cbs.values():
+			print consName + ' for callback ' + cb.asyncId
+			#should skip the asynchronous file operations
+			i = 0
+			j = i + 1
+			while i < len(cb.instructions) - 1 and j < len(cb.instructions):
+				self.solver.add(i == j - 1)
+				i = j
+				j += 1
+			for key in range(0, len(cb.instructions) - 1):
+				if isinstance(self.records[cb.instructions[key + 1]], TraceParser.FileAccessRecord) and self.records[cb.instructions[key + 1]].isAsync == True:
+					tmp = key
+					continue
+				self.solver.add(key == tmp - 1)
 			for key in range(0, len(cb.instructions)-1):
+				self.printConstraint(consName, cb.instructions[key], cb.instructions[key + 1])
 				self.solver.add(self.grid[cb.instructions[key]]==self.grid[cb.instructions[key+1]]-1)
 		#print self.solver
 		pass
