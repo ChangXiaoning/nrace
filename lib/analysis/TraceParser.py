@@ -194,7 +194,7 @@ class Callback:
 		self.addInstruction(lineno)
 		pass
 
-	def addRecord (self, rcd):
+	def addRecord (self, rcd):	
 		self.records.append(rcd.lineno)
 		if len(self.records)==1:
 			self.location=rcd.location
@@ -539,7 +539,10 @@ def processLine (line):
 	lineno+=1
 	record=None
 	if line:
-		#print '======line is: %s\n' %(line)
+		'''
+		if lineno == 109:
+			print '======line is: %s\n' %(line)
+		'''
 		item=line.split(",");
 		itemEntryType=item[0]
 		#print '     lineno is: %d\n     itemEntryType is: %s\n     ' %(lineno, itemEntryType)
