@@ -225,18 +225,18 @@ class Scheduler:
 			print self.records[key]
 		'''
 		for cb in self.cbs.values():
-			print consName + ' for callback ' + cb.asyncId
+			#print consName + ' for callback ' + cb.asyncId
 			#should skip the asynchronous file operations
 			i = 0
 			j = i + 1
-			print 'instructions: %s' %(cb.instructions)
+			#print 'instructions: %s' %(cb.instructions)
 			while i < len(cb.instructions) - 1 and j < len(cb.instructions):
 				#print 'i = %s, j = %s' %(i, j)
 				
 				if cb.instructions[j] in self.records and isinstance(self.records[cb.instructions[j]], TraceParser.FileAccessRecord) and self.records[cb.instructions[j]].isAsync == True:
 					j += 1
 				else:
-					self.printConstraint(consName, cb.instructions[i], cb.instructions[j])
+					#self.printConstraint(consName, cb.instructions[i], cb.instructions[j])
 					self.solver.add(self.grid[cb.instructions[i]] == self.grid[cb.instructions[j]] - 1)
 					i = j
 					j += 1
@@ -261,7 +261,7 @@ class Scheduler:
 			if hasattr(cb, 'start'):
 				self.solver.add(self.grid[cb.register]<self.grid[cb.start])
 				#self.printConstraint(consName, cb.register, cb.start)
-				self.printCbCons(consName, cb.prior, cb.asyncId)
+				#self.printCbCons(consName, cb.prior, cb.asyncId)
 		pass
 
 	def addPriorityConstraint_bak (self):
@@ -343,16 +343,16 @@ class Scheduler:
 		pass
 
 	def addFsConstraint (self):
-		print '=====addFSconstraint====='
+		#print '=====addFSconstraint====='
 		consName = 'fsConstraint'
 		for rcd in self.records.values():
 			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
 				#constraint 1: asynchronous file operation happens after the callback that launches it
 				self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
-				self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
+				#self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
 				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
 				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
-				self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
+				#self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
 		pass
 
 	def reorder (self, lineno1, lineno2):
@@ -460,8 +460,8 @@ class Scheduler:
 		pass
 
 	def isConcurrent_new_1 (self, lineno1, lineno2):
-
-		if self.records[lineno1].eid==self.records[lineno2].eid:
+		# For two file operations, they have same eid but they can be concurrent
+		if self.records[lineno1].eid==self.records[lineno2].eid and not isinstance(self.records[lineno1], TraceParser.FileAccessRecord):
 			return False
 		self.solver.push()
 		self.solver.add(self.grid[lineno1]<self.grid[lineno2])
@@ -683,25 +683,42 @@ class Scheduler:
 		pass
 
 	def detectFileRace (self):
+		'''
 		print '=======Detect FS Race======'
+		
+		for f in self.files:
+			print 'file %s' %(f)
+			print type(self.files[f])
+			for i in range(0, len(self.files[f])):
+				print type(self.files[f][i])
+				printObj(self.files[f][i])
+		'''
 		for f in self.files:
 			accessList = self.files[f]
 			if len(accessList) < 2:
 				continue
-			print 'file %s: ' %(f)
+			#print 'file %s: ' %(f)
 			for i in range(0, len(accessList) - 1):
 				for j in range(i + 1, len(accessList)):
-					if accessList[i].isAsync == accessList[j].isAsync and self.matchFileRacePattern(accessList[i], accessList[j]):
-						#if file access accessList[i] and accessList[j] are async
-						if accessList[i].isAsync and self.isConcurrent_new_1(accessList[i].lineno, accessList[j].lineno):
-							pattern = accessList[i].accessType + '_' +accessList[j].accessType
-							race = Race(pattern, accessList[i], accessList[j])
-							self.races.append(race)
-						#if file access accessList[i] and accessList[j] are sync
-						elif self.isConcurrent_new_1(self.cbs[accessList[i].eid].start, self.cbs[accessList[j].eid].start):
-							pattern = accessList[i].accessType + '_' +accessList[j].accessType
-							race = Race(pattern, accessList[i], accessList[j])
-							self.races.append(race)
+					'''
+					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
+					printObj(accessList[i])
+					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
+					printObj(accessList[j])
+					'''
+					if accessList[i].isAsync != accessList[j].isAsync:
+						#print 'THEY HAVE DIFFERENT ASYNC'
+						continue
+					elif not self.matchFileRacePattern(accessList[i], accessList[j]):
+						#print 'NOT MATCH'
+						continue
+					elif not self.isConcurrent_new_1(accessList[i].lineno, accessList[j].lineno):
+						#print 'NOT CONCURRENT'
+						continue
+					else:
+						pattern = accessList[i].accessType + '_' +accessList[j].accessType
+						race = Race(pattern, accessList[i], accessList[j])
+						self.races.append(race)	
 		pass
 
 	def check (self):
