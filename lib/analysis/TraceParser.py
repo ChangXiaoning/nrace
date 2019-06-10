@@ -146,7 +146,8 @@ ResourcePriority={
 	#TODO: promise
 	'TickObject':0,
 	'Immediate':1,
-	'Timeout':2,
+	#regard IMMEDIATE event and TIMEOUT event as same priority event
+	'Timeout':1,
 	'Other':3
 }
 
