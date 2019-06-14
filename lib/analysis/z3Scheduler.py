@@ -287,7 +287,7 @@ class Scheduler:
 
 	def addPriorityConstraint (self):
 		#TODO: TIMEOUT and I/O
-		'''
+		'''	
 		for cb in self.cbs.values():
 			printObj(cb)
 		'''
@@ -299,13 +299,24 @@ class Scheduler:
 		#print asynIds
 		#not consider the glocal script callback
 		for i in range(1, len(asynIds)-1):
+			
+			if not hasattr(self.cbs[asynIds[i]], 'start'):
+				continue
+
 			for j in range(i+1, len(asynIds)):
 				#print "********asyncId[i] is: %s, asyncId[j] is: %s" %(asynIds[i], asynIds[j])
+				
+				if not hasattr(self.cbs[asynIds[j]], 'start'):
+					continue
+				
 				#same priority && not consider I/O callbacks && not consider setTimeout
 				if self.cbs[asynIds[i]].priority==self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority!=3 and self.cbs[asynIds[i]].priority!=2:
 					#same prior (father)
 					if self.cbs[asynIds[i]].prior==self.cbs[asynIds[j]].prior:
 						if self.cbs[asynIds[i]].register < self.cbs[asynIds[j]].register:
+							#print "asyncId[i] is: %s, asyncId[j] is: %s" %(asynIds[i], asynIds[j])
+							#printObj[self.cbs[asynIds[i]]]
+							#printObj[self.cbs[asynIds[j]]]
 							self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
 							#print '1. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
 						else:
