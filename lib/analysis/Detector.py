@@ -19,8 +19,10 @@ def main():
 	else:
 		isChain = False
 	#step 1: parse record into object
+	print '*******BEGIN PARSE TRACE FILE*******'
 	parsedResult = TraceParser.processTraceFile(traceFile)
 	#step 2: detect
+	print '*******BEGIN DEBUG*******'
 	z3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 

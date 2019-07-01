@@ -1,3 +1,4 @@
+from __future__ import print_function
 import json
 import os
 import sys
@@ -17,8 +18,8 @@ def printDict (dict):
 
 def printObj (obj):
 	'''print object <Object> for debug'''
-	print '========object: ', obj
-	print 'details: ',  obj.__dict__
+	#print '========object: ', obj
+	#print 'details: ',  obj.__dict__
 	#print 'items: 	', ','.join(['%s:%s' % item for item in obj.__dict__.items()])
 	pass
 
@@ -174,7 +175,7 @@ class Callback:
 		pass
 
 	'''
-	def __init__ (self, start, end, register, prior, hbType, resourceType):
+	def __init__ (self, start, end, register, prirecordsor, hbType, resourceType):
 		self.start=start
 		self.end=end
 		self.register=register
@@ -248,6 +249,11 @@ class CbStack:
 
 	def enter (self, cbAsyncId, lineno):
 		self.stack.append(cbAsyncId)
+		'''
+		if cbAsyncId == '20534':
+			print "ENTER CB " + cbAsyncId
+		'''
+		#print self.stack
 		#print 'self.cbs is:'
 		#print self.cbs
 		if cbAsyncId in self.cbs:
@@ -257,10 +263,19 @@ class CbStack:
 		pass
 
 	def exit (self, asyncId, lineno):
+		if len(self.stack) == 0:
+			return
 		pop=self.stack.pop()
+		'''
+		if pop == '20534':
+			print "EXIT CB " + pop
+		'''
 		#print '=====CbStack.exit():======' + pop
 		if pop == asyncId and asyncId in self.cbs:
 			self.cbs[asyncId].addEnd(lineno)
+			if lineno == 7852:
+				print("ADD END7852 TO CB")
+				print(print_obj(self.cbs[asyncId], ['asyncId', 'start', 'end', 'instructions', 'records']))
 		instruction=StartandEndRecord(asyncId, 'end', lineno)
 		self.addDARecord(instruction)
 		pass
@@ -268,6 +283,10 @@ class CbStack:
 	def addCb (self, cb):
 		#1.save the param cb in self.cbs
 		self.cbs[cb.asyncId]=cb
+		'''
+		if cb.asyncId == '20534':
+			print 'ADD CB ' + cb.asyncId
+		'''
 		#2.save the cb.asyncId into its prior cb
 		if cb.prior != None and cb.prior in self.cbs:
 			self.cbs[cb.prior].addPostCb(cb)
@@ -515,22 +534,14 @@ class FileCbStack:
 		pass
 
 	def push (self, fileOp):
-		print "Before push self.stack is: "
-		print self.stack
 		self.stack.append()
-		print "After push self.stack is: "
-		print self.stack
 		pass
 
 	def pop (self):
-		print "Before pop self.stack is: "
-		print self.stack
 		return self.stack.pop()
 		pass
 
 	def top (self):
-		print "In top self.stack is: "
-		print self.stack
 		return self.stack[len(self.stack)-1] 
 		pass
 
@@ -550,13 +561,16 @@ def processLine (line):
 	record=None
 	if line:
 		
-		#if lineno == 109:
-		#print '======line is: %s\n' %(line)
+		#print lineno
+		#print '%d\r'%(lineno)
+		#print(lineno, end="\r")
+		
+		print('======line is: %s' %(line))
 	
 		item=line.split(",")
 		itemEntryType=item[0]
 		#print '     lineno is: %d\n     itemEntryType is: %s\n     ' %(lineno, itemEntryType)
-		if type(itemEntryType)!="int":
+		if type(itemEntryType)!="int" and itemEntryType != 'undefined':
 			itemEntryType=int(itemEntryType)
 		if not LogEntryType.has_key(itemEntryType):
 			return
@@ -649,7 +663,9 @@ def processLine (line):
 		conj='#'
 		#print 'sourceMap[record.%s] is: %s\n' %(record.iid, sourceMap[record.iid])
 		if not hasattr(record, 'location'):
-			record.location=conj.join(sourceMap[record.iid])
+			#sth wierd! some iid has no location in sourceMap
+			if record.iid in sourceMap:
+				record.location=conj.join(sourceMap[record.iid])
 		#isDeclaredLocal
 		record.isDeclaredLocal=funCtx.isDeclaredLocal(record.name)
 		#etp/TODO
@@ -664,19 +680,30 @@ def processLine (line):
 		#printObj(env)
 		record.etp=env.resourceType if env else None
 		#cbLoc
-		if env == None:
-			cbLoc == None
-		else:
-			cbLoc=env.getCbLoc()
+		cbLoc = env.getCbLoc() if env != None else None
 		record.cbLoc=cbLoc if cbLoc else record.location
 		#record.cbLoc=cbCtx.cbs[cbCtx.top()].getCbLoc()
 	
 		if isinstance(record, DataAccessRecord):
 			cbCtx.addDARecord(record)
-			cbCtx.cbs[cbCtx.top()].addRecord(record)
+			if cbCtx.top() in cbCtx.cbs:
+				cbCtx.cbs[cbCtx.top()].addRecord(record)
 		else:
 			cbCtx.addFileRecord(record)
-			cbCtx.cbs[cbCtx.top()].addRecord(record)
+			if cbCtx.top() in cbCtx.cbs:
+				cbCtx.cbs[cbCtx.top()].addRecord(record)
+	pass
+
+def searchFile (directory, filePrefix):
+	#search all the files that have the @filePrefix in the dir @directory
+	#@return <list>: the list of file name <str>
+	
+	fileList = list()
+	for root, dirs, files in os.walk(directory):
+		for f in files:
+			if f.startswith(filePrefix):
+				fileList.append(os.path.join(root, f))
+	return fileList
 	pass
 
 def processTraceFile (traceFile):
@@ -686,23 +713,29 @@ def processTraceFile (traceFile):
 	@return result <dict>: stores the collection of records (start/end, data access, register/resolve) <dict> indexed by lineno, cbs <dict> indexed by asyncId, cbsByPriority <dict> indexed by priorAsyncId
 	'''
 	#TODO: add python stdout 
-	print "======Begin to parse the trace file %s" %(traceFile)
-
+	#print "======Begin to parse the trace file %s" %(traceFile)
+	
 	with open(traceFile) as f:
 		line=f.readline()
 		while line:
 			processLine(line.strip())
 			line=f.readline()
-
 	'''
-	with open(traceFile) as f:
-		lines=f.readline()
-		for line in lines:
-			#remove the blank at the begin and end of each line
-			line=line.strip()
-			processLine(line)
-	'''
+	rootPath = os.path.dirname(os.path.realpath(traceFile))
+	fileName = 'ascii-trace'
+	traceFileList = searchFile(rootPath, fileName)
+	traceFileList.sort()
 
+	for fileName in traceFileList:
+		print("~~~~~~ENTER TRACEFILE %s ~~~~~~" %(fileName))
+		
+		with open(fileName) as f:
+			line = f.readline()
+			while line:
+				processLine(line.strip())
+				line = f.readline()
+	'''
+	
 	result=dict()
 	#result['dataAccessRecord']=DataAccessRecord.rcdsByScopeName
 	#allRecords['registerRecord']=RegisterRecord.records
@@ -714,6 +747,7 @@ def processTraceFile (traceFile):
 	result['records']=cbCtx.records
 	result['vars']=cbCtx.vars
 	result['files'] = cbCtx.files
+	print("*******COMPLETE PARSE TRACE*****")
 	return result
 	pass
 

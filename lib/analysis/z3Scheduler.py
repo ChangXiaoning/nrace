@@ -189,13 +189,18 @@ class Scheduler:
 		pass
 
 	def createOrderVariables (self):
+		print('^^^^^^CREATE ORDER VARIABLE^^^^^^')
 		for cb in self.cbs.values():
 			if hasattr(cb, 'start'):
 				self.grid[cb.start]=z3.Int('Instruction_for_%s' %(cb.start))
 				self.solver.add(self.grid[cb.start]>0)
+			#if cb.asyncId == '1':
+				#print("CB HAS END: %s" %(hasattr(cb, 'end')))
 			if hasattr(cb, 'end'):
 				self.grid[cb.end]=z3.Int('Instruction_for_%s' %(cb.end))
 				self.solver.add(self.grid[cb.end]>0)
+				if cb.end == 7852:
+					print("self.grid[7852] = %s" %(self.grid[cb.end]))
 			self.grid[cb.register]=z3.Int('Instruction_for_%s' %(cb.register)) 
 			for lineno in cb.records:
 				#print 'lineno in cb.records is: %s' %(lineno)
@@ -217,6 +222,7 @@ class Scheduler:
 		pass
 
 	def addProgramAtomicityConstraint (self):
+		print("^^^^^^PROGRAM ATOMICITY^^^^^^")
 		consName = 'Atomicity'
 		#print 'self.records:'
 		'''
@@ -227,6 +233,11 @@ class Scheduler:
 		for cb in self.cbs.values():
 			#print consName + ' for callback ' + cb.asyncId
 			#should skip the asynchronous file operations
+			'''
+			if cb.asyncId == '1':
+				for i in cb.instructions:
+					print("self.grid[%s] = %s" %(i, self.grid[i]))
+			'''
 			i = 0
 			j = i + 1
 			#print 'instructions: %s' %(cb.instructions)
@@ -237,7 +248,8 @@ class Scheduler:
 					j += 1
 				else:
 					#self.printConstraint(consName, cb.instructions[i], cb.instructions[j])
-					self.solver.add(self.grid[cb.instructions[i]] == self.grid[cb.instructions[j]] - 1)
+					if cb.instructions[i] in self.grid and cb.instructions[j] in self.grid:
+						self.solver.add(self.grid[cb.instructions[i]] == self.grid[cb.instructions[j]] - 1)
 					i = j
 					j += 1
 		pass
@@ -251,7 +263,8 @@ class Scheduler:
 		pass
 
 	def addRegisterandResolveConstraint (self):
-	
+		
+		print("^^^^^^REGISTER AND RESOLVE^^^^^^")
 		#print self.cbs
 		consName = 'RegisterandResolve'
 		for cb in self.cbs.values():
@@ -265,7 +278,7 @@ class Scheduler:
 		pass
 
 	def addPriorityConstraint_bak (self):
-
+		
 		for cb in self.cbs.values():
 			if not hasattr(cb, 'postCbs'):
 				continue
@@ -291,6 +304,7 @@ class Scheduler:
 		for cb in self.cbs.values():
 			printObj(cb)
 		'''
+		print("^^^^^^^PRIORITY^^^^^^")
 		#asynIds=self.cbs.keys()
 		asynIds=map(lambda x: int(x), self.cbs.keys())
 		asynIds.sort()
@@ -354,6 +368,7 @@ class Scheduler:
 		pass
 
 	def addFsConstraint (self):
+		print("^^^^^^FS CONSTRAINT^^^^^^")
 		#print '=====addFSconstraint====='
 		consName = 'fsConstraint'
 		for rcd in self.records.values():
