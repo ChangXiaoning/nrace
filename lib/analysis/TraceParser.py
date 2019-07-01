@@ -225,6 +225,8 @@ class CbStack:
 	def __init__ (self):
 		self.stack=list()
 		self.cbs=dict()
+		#if the data access happens after the script exits and before enter a callback, allocate '0' to its eid
+		#self.cbs['0'] = '0'
 		#all data access records and file access records are stored in self.records property, indexed by lineno
 		self.records=dict()
 		self.vars=dict()
@@ -235,7 +237,13 @@ class CbStack:
 		pass
 
 	def top (self):
-		return self.stack[len(self.stack)-1]
+		#print '=====CbStack.top():====='
+		#print self.stack
+		if len(self.stack) > 0:
+			return self.stack[len(self.stack)-1]
+		else:
+			#if the data access happens after the script exits and before enter a callback, allocate '0' to its eid
+			return '0'
 		pass
 
 	def enter (self, cbAsyncId, lineno):
@@ -250,6 +258,7 @@ class CbStack:
 
 	def exit (self, asyncId, lineno):
 		pop=self.stack.pop()
+		#print '=====CbStack.exit():======' + pop
 		if pop == asyncId and asyncId in self.cbs:
 			self.cbs[asyncId].addEnd(lineno)
 		instruction=StartandEndRecord(asyncId, 'end', lineno)
@@ -540,11 +549,11 @@ def processLine (line):
 	lineno+=1
 	record=None
 	if line:
-		'''
-		if lineno == 109:
-			print '======line is: %s\n' %(line)
-		'''
-		item=line.split(",");
+		
+		#if lineno == 109:
+		#print '======line is: %s\n' %(line)
+	
+		item=line.split(",")
 		itemEntryType=item[0]
 		#print '     lineno is: %d\n     itemEntryType is: %s\n     ' %(lineno, itemEntryType)
 		if type(itemEntryType)!="int":
@@ -647,12 +656,18 @@ def processLine (line):
 		#env=RegisterRecord.records[record.eid] if RegisterRecord.records.has_key(record.eid) else ResolveRecord.records[record.eid]
 		#env=HappensBeforeRecord.records[record.eid] if HappensBeforeRecord.records.has_key(record.eid) else None
 		#print 'record.eid is: %s' %(record.eid)
-		env=cbCtx.cbs[record.eid]
+		if record.eid == '0':
+			env = None
+		else:
+			env=cbCtx.cbs[record.eid]
 		#print 'env is:'
 		#printObj(env)
 		record.etp=env.resourceType if env else None
 		#cbLoc
-		cbLoc=env.getCbLoc()
+		if env == None:
+			cbLoc == None
+		else:
+			cbLoc=env.getCbLoc()
 		record.cbLoc=cbLoc if cbLoc else record.location
 		#record.cbLoc=cbCtx.cbs[cbCtx.top()].getCbLoc()
 	
