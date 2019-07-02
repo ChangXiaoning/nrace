@@ -2,9 +2,6 @@ import sys
 import os
 import TraceParser
 import Logging
-#from TraceParser import FileAccessRecord
-#from TraceParser import DataAccessRecord
-#from TraceParser import print_obj
 
 logger=Logging.logger
 
@@ -181,11 +178,7 @@ class Scheduler:
 			if not cb.postCbs:
 				del cb.postCbs
 		self.cbs=cbs
-		'''
-		print '11111111111self.cbs is:'
-		for cb in self.cbs.values():
-			printObj(cb)
-		'''	
+		
 		pass
 
 	def createOrderVariables (self):
@@ -198,9 +191,7 @@ class Scheduler:
 				#print("CB HAS END: %s" %(hasattr(cb, 'end')))
 			if hasattr(cb, 'end'):
 				self.grid[cb.end]=z3.Int('Instruction_for_%s' %(cb.end))
-				self.solver.add(self.grid[cb.end]>0)
-				if cb.end == 7852:
-					print("self.grid[7852] = %s" %(self.grid[cb.end]))
+				self.solver.add(self.grid[cb.end]>0)	
 			self.grid[cb.register]=z3.Int('Instruction_for_%s' %(cb.register)) 
 			for lineno in cb.records:
 				#print 'lineno in cb.records is: %s' %(lineno)
@@ -209,41 +200,18 @@ class Scheduler:
 		pass
 
 	def addDistinctConstraint (self):
-		self.solver.add(z3.Distinct(self.grid.values()))
-		'''
-		starts=list()
-		for cb in self.cbs.values():
-			print 'cb is:'
-			printObj(cb)
-			if hasattr(cb, 'start'):
-				starts.append(self.grid[cb.start])
-		self.solver.add(z3.Distinct(starts))
-		'''
+		self.solver.add(z3.Distinct(self.grid.values()))	
 		pass
 
 	def addProgramAtomicityConstraint (self):
 		print("^^^^^^PROGRAM ATOMICITY^^^^^^")
-		consName = 'Atomicity'
-		#print 'self.records:'
-		'''
-		for key in self.records:
-			print key
-			print self.records[key]
-		'''
+		consName = 'Atomicity'	
 		for cb in self.cbs.values():
 			#print consName + ' for callback ' + cb.asyncId
-			#should skip the asynchronous file operations
-			'''
-			if cb.asyncId == '1':
-				for i in cb.instructions:
-					print("self.grid[%s] = %s" %(i, self.grid[i]))
-			'''
+			#should skip the asynchronous file operations	
 			i = 0
 			j = i + 1
-			#print 'instructions: %s' %(cb.instructions)
 			while i < len(cb.instructions) - 1 and j < len(cb.instructions):
-				#print 'i = %s, j = %s' %(i, j)
-				
 				if cb.instructions[j] in self.records and isinstance(self.records[cb.instructions[j]], TraceParser.FileAccessRecord) and self.records[cb.instructions[j]].isAsync == True:
 					j += 1
 				else:
@@ -265,12 +233,9 @@ class Scheduler:
 	def addRegisterandResolveConstraint (self):
 		
 		print("^^^^^^REGISTER AND RESOLVE^^^^^^")
-		#print self.cbs
+
 		consName = 'RegisterandResolve'
-		for cb in self.cbs.values():
-			#print 'In addRegisterCons'
-			#print cb.asyncId
-			#printObj(cb)
+		for cb in self.cbs.values():	
 			if hasattr(cb, 'start'):
 				self.solver.add(self.grid[cb.register]<self.grid[cb.start])
 				#self.printConstraint(consName, cb.register, cb.start)
@@ -299,18 +264,17 @@ class Scheduler:
 		pass
 
 	def addPriorityConstraint (self):
-		#TODO: TIMEOUT and I/O
+		#TODO: TIMEOUT
 		'''	
 		for cb in self.cbs.values():
 			printObj(cb)
 		'''
 		print("^^^^^^^PRIORITY^^^^^^")
-		#asynIds=self.cbs.keys()
+		
 		asynIds=map(lambda x: int(x), self.cbs.keys())
-		asynIds.sort()
-		#asynIds=map(lambda x: str(x), map(lambda y: int(y), self.cbs.keys()).sort())
+		asynIds.sort()	
 		asynIds=map(lambda x: str(x), asynIds)
-		#print asynIds
+	
 		#not consider the glocal script callback
 		for i in range(1, len(asynIds)-1):
 			
@@ -368,6 +332,7 @@ class Scheduler:
 		pass
 
 	def addFsConstraint (self):
+		#TODO: if refactor, this needs to update
 		print("^^^^^^FS CONSTRAINT^^^^^^")
 		#print '=====addFSconstraint====='
 		consName = 'fsConstraint'
@@ -380,7 +345,7 @@ class Scheduler:
 				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
 				#self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
 		pass
-
+	'''
 	def reorder (self, lineno1, lineno2):
 		# only exist one happens before another, it is happens-before relation. Otherwise, it is concurrency relation.
 		#@param daRcd: the lineno that represents the data access record
@@ -411,7 +376,7 @@ class Scheduler:
 	def isConcurrent (self, lineno1, lineno2):
 		return isinstance(reorder(lineno1, lineno2), str)
 		pass
-
+   
 	def happensBefore_bak (self, lineno1, lineno2):
 		#check whether lineno1 happens before lineno2
 		#@return <boolean>: if lineno1 happens before lineno2, return true
@@ -434,7 +399,7 @@ class Scheduler:
 		self.solver.pop()
 		return res
 		pass
-
+	'''
 	def happensBefore (self, lineno1, lineno2):
 		
 		#print '^^^^^^^^^^in happensBefore: %s, %s' %(lineno1, lineno2)
@@ -477,33 +442,32 @@ class Scheduler:
 		else:
 			return True
 		pass
-
+	'''
 	def isConcurrent_new (self, lineno1, lineno2):
 		print '**********isConcurrent_new: '
 		print 'self.happensBefore(%s, %s) is: %s' %(lineno1, lineno2, self.happensBefore(lineno1, lineno2))
 		print 'self.happensBefore(%s, %s) is: %s' %(lineno2, lineno1, self.happensBefore(lineno2, lineno1))
 		return self.happensBefore(lineno1, lineno2) and self.happensBefore(lineno2, lineno1)
 		pass
-
-	def isConcurrent_new_1 (self, lineno1, lineno2):
-		# For two file operations, they have same eid but they can be concurrent
-		if self.records[lineno1].eid==self.records[lineno2].eid and not isinstance(self.records[lineno1], TraceParser.FileAccessRecord):
-			return False
+	'''
+	def isConcurrent_new_1 (self, lineno1, lineno2):	
 		self.solver.push()
 		self.solver.add(self.grid[lineno1]<self.grid[lineno2])
 		res=self.check()
 		self.solver.pop()
 		if not res:
+			#print("NOT 1<2")
 			return False
 		self.solver.push()
 		self.solver.add(self.grid[lineno2]<self.grid[lineno1])
 		res=self.check()
 		self.solver.pop()
 		if not res:
+			#print("NOT 1>2")
 			return False
 		else:
 			return True
-		pass
+		pass	
 
 	def addW_W_RPattern (self):
 
@@ -688,6 +652,13 @@ class Scheduler:
 			#detect W race with W
 			for i in range(0, len(WList)-1):
 				for j in range(i+1, len(WList)):
+					'''			
+					print("i:")
+					printObj(self.records[WList[i]])
+					print("j:")
+					printObj(self.records[WList[j]])
+					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
+					'''
 					if not self.isConcurrent_new_1(WList[i], WList[j]):
 						continue
 					#race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
