@@ -174,18 +174,6 @@ class Callback:
 		self.instructions=list()
 		pass
 
-	'''
-	def __init__ (self, start, end, register, prirecordsor, hbType, resourceType):
-		self.start=start
-		self.end=end
-		self.register=register
-		self.records=list()
-		self.prior=prior
-		self.hbType=hbType
-		self.resourceType=resourceType
-		self.priority=ResourcePriority.getPriority(resourceType)
-		pass
-	'''
 	def addStart (self, lineno):
 		self.start=lineno
 		self.addInstruction(lineno)
@@ -249,13 +237,7 @@ class CbStack:
 
 	def enter (self, cbAsyncId, lineno):
 		self.stack.append(cbAsyncId)
-		'''
-		if cbAsyncId == '20534':
-			print "ENTER CB " + cbAsyncId
-		'''
-		#print self.stack
-		#print 'self.cbs is:'
-		#print self.cbs
+		
 		if cbAsyncId in self.cbs:
 			self.cbs[cbAsyncId].addStart(lineno)
 		instruction=StartandEndRecord(cbAsyncId, 'start', lineno)
@@ -266,11 +248,7 @@ class CbStack:
 		if len(self.stack) == 0:
 			return
 		pop=self.stack.pop()
-		'''
-		if pop == '20534':
-			print "EXIT CB " + pop
-		'''
-		#print '=====CbStack.exit():======' + pop
+	
 		if pop == asyncId and asyncId in self.cbs:
 			self.cbs[asyncId].addEnd(lineno)
 			if lineno == 7852:
@@ -283,10 +261,7 @@ class CbStack:
 	def addCb (self, cb):
 		#1.save the param cb in self.cbs
 		self.cbs[cb.asyncId]=cb
-		'''
-		if cb.asyncId == '20534':
-			print 'ADD CB ' + cb.asyncId
-		'''
+		
 		#2.save the cb.asyncId into its prior cb
 		if cb.prior != None and cb.prior in self.cbs:
 			self.cbs[cb.prior].addPostCb(cb)
@@ -396,69 +371,6 @@ class FunStack:
 			return False
 		return self.vars[self.getId()].has_key(name)
 		pass
-
-'''
-class CbStack:
-	
-	@stack <list>: stores the eid of each callback
-	@cbs <dict>: cbs[eid]=location, stores the location first record of each execution of a callback, which is used as the location of callback, indexed by eid
-	@curCtx <dict>: the object maintaining a dictionary for each eid curCtx[eid] that contains variables curCtx[eid][var] <dir> and records curCtx[eid][rcds] <list>
-	@vars <dict>: the dictionary stores variables that callback accesses to, indexed by variable id. For vars[variableId] is also a dictionary, indexed by W & R. vars[variableId][W] is a list, storing cb ids
-	
-	def __init__(self):
-		#set the first element in self.stack to 0 to assume the global script as a callback
-		#self.stack=['0']
-		self.stack=[]
-		self.cbs={}
-		#self.curCtx={}
-		self.vars={}
-		pass
-
-	def top (self):
-		#print 'Now the cbCtx.stack is: %s' %(self.stack) 
-		return self.stack[len(self.stack)-1]
-		pass
-
-	def enter (self, eid):
-		self.stack.append(eid)
-		self.curCtx[eid]={}
-		self.curCtx[eid][var]={}
-		self.curCtx[eid][rcds]=[]
-		pass
-
-	def exit (self):
-		topEid=self.top()
-		if not curCtx.has_key(topEid):
-			return
-		else:
-			del curCtx[topEid]
-			self.stack.pop()
-		self.stack.pop()
-		pass
-	
-	def access (self, rcd):
-		if not self.cbs.has_key(rcd.eid):
-			self.cbs[eid]=rcd.location
-		pass
-	
-	def getCbLoc (self, rcd):
-		if ( rcd != None and self.cbs.has_key(rcd.eid)):
-			return self.cbs[rcd.eid]
-		pass
-
-	def saveDA (self, dataAccessRcd):
-		#if the variable is accessed by the global script, we ignore it and do not save it
-		if dataAccessRcd.eid=='0':
-			return
-		varId=dataAccessRcd.getId()
-		if not self.vars.has_key(varId):
-			self.vars[varId]={'R':[], 'W':[]}
-		if 'R'==dataAccessRcd.accessType and dataAccessRcd.eid not in self.vars[varId]['R']:
-			self.vars[varId]['R'].append(dataAccessRcd.eid)
-		elif 'W'==dataAccessRcd.accessType and dataAccessRcd.eid not in self.vars[varId]['W']:
-			self.vars[varId]['W'].append(dataAccessRcd.eid)
-		pass
-'''
 	
 class DataAccessRecord:
 
@@ -549,7 +461,6 @@ def processLine (line):
 
 	#@param line <str>: each line in the trace file
 	
-	#print "content: %s" %(line)
 	global lineno
 	global sourceMap
 	global currentSourceFile
@@ -563,28 +474,21 @@ def processLine (line):
 		
 		#print lineno
 		#print '%d\r'%(lineno)
-		#print(lineno, end="\r")
-		
+		#print(lineno, end="\r"i)
+
+		print(lineno)
 		print('======line is: %s' %(line))
 	
 		item=line.split(",")
 		itemEntryType=item[0]
-		#print '     lineno is: %d\n     itemEntryType is: %s\n     ' %(lineno, itemEntryType)
 		if type(itemEntryType)!="int" and itemEntryType != 'undefined':
 			itemEntryType=int(itemEntryType)
 		if not LogEntryType.has_key(itemEntryType):
 			return
 		itemEntryTypeName=LogEntryType[itemEntryType]
 		if VarAccessType.has_key(itemEntryTypeName):
-			#print '=====lineno is: %d' % lineno
-			record=DataAccessRecord(lineno, itemEntryTypeName, VarAccessType[itemEntryTypeName], item[2], item[3], cbCtx.top(), item[1])
-			#logger.debug('record.eid is: %s' %(record.eid))
-			#cbCtx.saveDA(record)
-			#cbCtx.cbs[cbCtx.top()].addRecord(record)
-			#cbCtx.addDARecord(record)
-		elif FileAccessType.has_key(itemEntryTypeName):
-			#print 'CREATE A FILEACCESSRECORD'
-			#To reduce the size of trace file, isAsync is recorded as 1 or 0
+			record=DataAccessRecord(lineno, itemEntryTypeName, VarAccessType[itemEntryTypeName], item[2], item[3], cbCtx.top(), item[1])	
+		elif FileAccessType.has_key(itemEntryTypeName):	
 			if item[6] == '1':
 				isAsync = True
 			else:
@@ -599,10 +503,7 @@ def processLine (line):
 			#constraints.append(Constraint(item[1], item[3]))
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
-		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:
-			#logger.debug('enter the cb-%s' %(item[1]))
-			#logger.debug('current cbs is: ')
-			#print cbCtx.cbs
+		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:	
 			cbCtx.enter(item[1], lineno)
 			#cbCtx.cbs[item[1]].addStart(lineno)
 			'''
@@ -631,15 +532,13 @@ def processLine (line):
 			#note: asyncId is '1' rather than '0' in order to be the same with the prior cb of callbacks the glocal script registers
 			#record=HappensBeforeRecord (lineno, '0', None, 'register', 'GLOBALCB')
 			cb=Callback('1', None, 'GLOBALCB', 'register', lineno)
-			cbCtx.addCb(cb)
-			#printObj(cb)
+			cbCtx.addCb(cb)	
 			#before: assume eid='0'
 			#cbCtx.enter('0')
 			#to make each instruction has a unique lineno
 			lineno=lineno+1
 			cbCtx.enter(cb.asyncId, lineno)
-			#function_enter
-			#lineno=lineno+1
+			#function_enter	
 			funCtx.enter(item[1])
 		elif itemEntryType==LogEntryType["SCRIPT_EXIT"]:
 			#cb after
@@ -647,21 +546,18 @@ def processLine (line):
 			#TODO: add function exit
 		elif itemEntryType==LogEntryType["SOURCE_MAPPING"]:
 			lst=[currentSourceFile]
-			#lst.append(item[2:6])
 			sourceMap[item[1]]=lst+item[2:6]
 		elif itemEntryType==LogEntryType["FUNCTION_ENTER"]:
 			funCtx.enter(item[1])
 		elif itemEntryType==LogEntryType["FUNCTION_EXIT"]:
 			funCtx.exit()
-		elif itemEntryType==LogEntryType["DECLARE"]:
-			#print 'DECLARE item[3] is: %s' %(item[3])
+		elif itemEntryType==LogEntryType["DECLARE"]:	
 			funCtx.declare(item[3])
 
 	#add following information for each data accessing record: location, isDeclaredLocal, etp and cbLoc
 	if isinstance(record, DataAccessRecord) or isinstance(record, FileAccessRecord):
 		#location
-		conj='#'
-		#print 'sourceMap[record.%s] is: %s\n' %(record.iid, sourceMap[record.iid])
+		conj='#'	
 		if not hasattr(record, 'location'):
 			#sth wierd! some iid has no location in sourceMap
 			if record.iid in sourceMap:
@@ -671,18 +567,14 @@ def processLine (line):
 		#etp/TODO
 		#env=RegisterRecord.records[record.eid] if RegisterRecord.records.has_key(record.eid) else ResolveRecord.records[record.eid]
 		#env=HappensBeforeRecord.records[record.eid] if HappensBeforeRecord.records.has_key(record.eid) else None
-		#print 'record.eid is: %s' %(record.eid)
 		if record.eid == '0':
 			env = None
 		else:
-			env=cbCtx.cbs[record.eid]
-		#print 'env is:'
-		#printObj(env)
+			env=cbCtx.cbs[record.eid]	
 		record.etp=env.resourceType if env else None
 		#cbLoc
 		cbLoc = env.getCbLoc() if env != None else None
-		record.cbLoc=cbLoc if cbLoc else record.location
-		#record.cbLoc=cbCtx.cbs[cbCtx.top()].getCbLoc()
+		record.cbLoc=cbLoc if cbLoc else record.location	
 	
 		if isinstance(record, DataAccessRecord):
 			cbCtx.addDARecord(record)
@@ -736,13 +628,7 @@ def processTraceFile (traceFile):
 				line = f.readline()
 	'''
 	
-	result=dict()
-	#result['dataAccessRecord']=DataAccessRecord.rcdsByScopeName
-	#allRecords['registerRecord']=RegisterRecord.records
-	#allRecords['resolveRecord']=ResolveRecord.records
-	#result['HappensBeforeRecord']=HappensBeforeRecord.records
-	#result['constraints']=constraints
-	#result['cbs']=cbCtx.vars
+	result=dict()	
 	result['cbs']=cbCtx.cbs
 	result['records']=cbCtx.records
 	result['vars']=cbCtx.vars
@@ -763,37 +649,7 @@ def main():
 		isChain = False
 	#step 1: parse record into object
 	parsedResult=processTraceFile(traceFile)
-	#print parsedResult
-	#remove the variable that accessed by less than 3 callbacks
-	'''
-	for varId in parsedResult['cbs'].keys():
-		#print '===process the variable %s' % varId
-		#print 'len(parsedResult[\'cbs\'][varId][\'R\']) is: %d' %len(parsedResult['cbs'][varId]['R'])
-		#print 'len(parsedResult[\'cbs\'][varId][\'W\']) is: %d' %len(parsedResult['cbs'][varId]['W'])
-		if len(parsedResult['cbs'][varId]['R'])+len(parsedResult['cbs'][varId]['W'])<3:
-			del parsedResult['cbs'][varId]
-	'''
-	#logger.debug("Here are parsed cbs:")
-	'''
-	print 'Here are parsed cbs:'
-	for cb in parsedResult['cbs'].values():
-		printObj(cb)
-	'''
-	'''
-	#logger.debug("Here are parsed records:")
-	print 'Here are parsed records:'
-	for daRcd in parsedResult['records'].values():
-		printObj(daRcd)
-	'''
-	'''
-	print 'Here are parsed variables:'
-	for var in parsedResult['vars'].keys():
-		print '<%s>:\nW:%s\nR:%s\n' %(var, parsedResult['vars'][var]['W'], parsedResult['vars'][var]['R'])
-	'''
-	#step 2: find the nearest happens-before relation among callbacks
-	#z3Scheduler.buildConstraints (parsedResult)
-	#z3Scheduler.startDebug(parsedResult)
-	z3Scheduler.startDebug(parsedResult, isRace, isChain)
+	
 	pass
 
 lineno=-1
@@ -803,8 +659,4 @@ funCtx=FunStack()
 cbCtx=CbStack()
 #records=dict()
 fileCtx = FileCbStack()
-'''
-if __name__=="__main__":
-	main()
-	pass
-'''
+
