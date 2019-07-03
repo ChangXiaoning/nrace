@@ -23,19 +23,6 @@ def printObj (obj):
 	#print 'items: 	', ','.join(['%s:%s' % item for item in obj.__dict__.items()])
 	pass
 
-def print_obj_bak (obj, fieldlist):
-	#@param obj <instance>
-	#@param fieldList <list>: each element in this list is <str>, representing a property of obj
-
-	res=list()
-	if obj and fieldlist:
-		for i in range(0, len(fieldlist)):
-			field=fieldlist[i]
-			if hasattr(obj, field):
-				res.append(field+':'+obj.field)
-		return '{'+', '.join(res)+'}'
-	pass
-
 def print_obj (obj, fieldList):
 
 	res=list()
@@ -130,17 +117,6 @@ def isFsRace (rcd1, rcd2):
 		return False
 	pass
 
-ResourcePriority_bak={
-	#TODO: priority seems insuitable.
-	#FSEVENTWRAP, FSREQWRAP, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPPARSER, JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP, SHUTDOWNWRAP, 
-	#SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPWRAP, TIMERWRAP, TTYWRAP, UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST, RANDOMBYTESREQUEST, 
-	#TLSWRAP, Timeout, Immediate, TickObject
-	'TickObject':1,
-	'Timeout':2,
-	'Immediate':2,
-	'Other':3
-}
-
 ResourcePriority={
 
 	#corresponding to the paper <sementics of asynchronous javascript>
@@ -171,24 +147,24 @@ class Callback:
 		self.records=list()
 		self.postCbs=dict()
 		#store the lineno of start, data accesses, registers, end
-		self.instructions=list()
+		#self.instructions=list()
 		pass
 
 	def addStart (self, lineno):
 		self.start=lineno
-		self.addInstruction(lineno)
+		#self.addInstruction(lineno)
 		pass
 
 	def addEnd (self, lineno):
 		self.end=lineno
-		self.addInstruction(lineno)
+		#self.addInstruction(lineno)
 		pass
 
 	def addRecord (self, rcd):	
 		self.records.append(rcd.lineno)
 		if len(self.records)==1:
 			self.location=rcd.location
-		self.addInstruction(rcd.lineno)
+		#self.addInstruction(rcd.lineno)
 		pass
 
 	def getCbLoc (self):
@@ -204,11 +180,11 @@ class Callback:
 		#self.postCbs.append(postCb.asyncId)
 		self.postCbs[postCb.priority].append(postCb.asyncId)
 		pass
-
+	'''
 	def addInstruction (self, lineno):
 		self.instructions.append(lineno)
 		pass
-		
+	'''	
 class CbStack:
 
 	def __init__ (self):
@@ -219,7 +195,7 @@ class CbStack:
 		#all data access records and file access records are stored in self.records property, indexed by lineno
 		self.records=dict()
 		self.vars=dict()
-		#all file access records are stored in self.files property, indexed by file
+		#all file access records are stored in self.files property, indexed by file name, each file name corresponds to a list of lineno of FileAccessRecord
 		self.files = dict()
 		#save callback in initialized order
 		self.cbForFile = list()
@@ -240,8 +216,10 @@ class CbStack:
 		
 		if cbAsyncId in self.cbs:
 			self.cbs[cbAsyncId].addStart(lineno)
+		'''
 		instruction=StartandEndRecord(cbAsyncId, 'start', lineno)
 		self.addDARecord(instruction)
+		'''
 		pass
 
 	def exit (self, asyncId, lineno):
@@ -251,11 +229,6 @@ class CbStack:
 	
 		if pop == asyncId and asyncId in self.cbs:
 			self.cbs[asyncId].addEnd(lineno)
-			if lineno == 7852:
-				print("ADD END7852 TO CB")
-				print(print_obj(self.cbs[asyncId], ['asyncId', 'start', 'end', 'instructions', 'records']))
-		instruction=StartandEndRecord(asyncId, 'end', lineno)
-		self.addDARecord(instruction)
 		pass
 
 	def addCb (self, cb):
@@ -266,8 +239,11 @@ class CbStack:
 		if cb.prior != None and cb.prior in self.cbs:
 			self.cbs[cb.prior].addPostCb(cb)
 			#note: it is possible for the global script to register callbacks after the script exit
+			#we do not consider the registration instruction any more
+			'''
 			if not hasattr(self.cbs[cb.prior], 'end'):
 				self.cbs[cb.prior].addInstruction(cb.register)
+			'''
 		#3.save cb in initialized order to associate file operation with its cb
 		self.cbForFile.append(cb.asyncId)
 		pass
@@ -280,7 +256,7 @@ class CbStack:
 	def addDARecord (self, rcd):
 		self.records[rcd.lineno]=rcd
 		if isinstance(rcd, DataAccessRecord):
-			self.addInVars_new(rcd)
+			self.addInVars(rcd)
 		pass
 
 	def addFileRecord (self, rcd):
@@ -289,24 +265,10 @@ class CbStack:
 		fileId = rcd.getId()
 		if not self.files.has_key(fileId):
 			self.files[fileId] = list()
-		self.files[fileId].append(rcd)
-		pass
+		self.files[fileId].append(rcd.lineno)
+		pass	
 
 	def addInVars (self, daRcd):
-		#if the variable is accessed by the global script, we ignore it and do not save it
-		#if rcd.eid == '1':
-			#return
-
-		varId=daRcd.getId()
-		if not self.vars.has_key(varId):
-			self.vars[varId]={'R': [], 'W': []}
-		if 'R'==daRcd.accessType and daRcd.eid not in self.vars[varId]['R']:
-			self.vars[varId]['R'].append(daRcd.eid)
-		elif 'W'==daRcd.accessType and daRcd.eid not in self.vars[varId]['W']:
-			self.vars[varId]['W'].append(daRcd.eid)
-		pass
-
-	def addInVars_new (self, daRcd):
 		#the new addInVars is to add the lineno of the daRcd into self.vars instead of cb
 
 		varId=daRcd.getId()
@@ -374,11 +336,7 @@ class FunStack:
 	
 class DataAccessRecord:
 
-	count=0
-	#@records <dict> stores all the data accessing records, indexed by iid
-	records={}
-	#rcdsByScopeName <dict> stores all data accessing records, indexed by identifier scope-name. Each rcdsByScopeName['scope-name']=<list>
-	#rcdsByScopeName={}
+	count=0	
 
 	def __init__ (self, lineno, entryType, accessType, ref, name, eid, iid):
 		self.lineno=lineno
@@ -387,23 +345,13 @@ class DataAccessRecord:
 		self.ref=ref
 		self.name=name
 		self.eid=eid
-		self.iid=iid
-		DataAccessRecord.count+=1
-		DataAccessRecord.records[iid]=self
-		#self.classifyRcd()
+		self.iid=iid	
 		pass
 
 	def getId (self):
 		#input: a data accessing record
 		#return: the string 'scope@name'
-		return self.ref+'@'+self.name
-
-	def classifyRcd (self):
-		identifier=self.getId()
-		if not DataAccessRecord.rcdsByScopeName.has_key(identifier):
-			DataAccessRecord.rcdsByScopeName[identifier]=[] 
-		DataAccessRecord.rcdsByScopeName[identifier].append(self)
-		pass
+		return self.ref+'@'+self.name	
 
 	def toString (self):
 		return print_obj(self, ['lineno', 'location', 'cbLoc', 'iid', 'accessType', 'logEntryType', 'ref', 'name', 'eid', 'etp'])
@@ -430,7 +378,7 @@ class FileAccessRecord (object):
 	def toString (self):
 		return print_obj(self, ['lineno', 'entryType', 'accessType', 'resource', 'ref', 'name', 'eid', 'location', 'isAsync'])
 		pass
-
+'''
 class StartandEndRecord:
 
 	def __init__ (self, asyncId, insType, lineno):
@@ -438,24 +386,7 @@ class StartandEndRecord:
 		self.type=insType
 		self.lineno=lineno
 		pass
-
-class FileCbStack:
-
-	def __init__ (self):
-		self.stack = list()
-		pass
-
-	def push (self, fileOp):
-		self.stack.append()
-		pass
-
-	def pop (self):
-		return self.stack.pop()
-		pass
-
-	def top (self):
-		return self.stack[len(self.stack)-1] 
-		pass
+'''
 
 def processLine (line):
 
@@ -495,35 +426,16 @@ def processLine (line):
 				isAsync = False
 			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], isAsync)
 			if record.isAsync == True:
-				#fileCtx.push(record)
 				#associate asynchronous file operation with its callback
 				record.cb = cbCtx.getNewestCb()	
-		elif itemEntryType==LogEntryType["ASYNC_INIT"]:
-			#record=HappensBeforeRecord(lineno, item[1], item[3], 'register', item[2])
-			#constraints.append(Constraint(item[1], item[3]))
+		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
 		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:	
-			cbCtx.enter(item[1], lineno)
-			#cbCtx.cbs[item[1]].addStart(lineno)
-			'''
-			if item[1] in cbCtx.cbs:
-				cbCtx.cbs[item[1]].addStart(lineno)
-			instruction=StartandEndRecord(item[1], 'start', lineno)
-			cbCtx.addDARecord(instruction)
-			'''
+			cbCtx.enter(item[1], lineno)	
 		elif itemEntryType==LogEntryType["ASYNC_AFTER"]:
-			cbCtx.exit(item[1], lineno)
-			#cbCtx.cbs[item[1]].addEnd(lineno)
-			'''
-			if item[1] in cbCtx.cbs:
-				cbCtx.cbs[item[1]].addEnd(lineno)
-			instruction=StartandEndRecord(item[1], 'end', lineno)
-			cbCtx.addDARecord(instruction)
-			'''
-		elif itemEntryType==LogEntryType["ASYNC_PROMISERESOLVE"]:
-			#record=HappensBeforeRecord(lineno, item[1], item[2], 'resolve','RESOLVE')
-			#constraints.append(Constraint(item[1], item[2]))
+			cbCtx.exit(item[1], lineno)	
+		elif itemEntryType==LogEntryType["ASYNC_PROMISERESOLVE"]:	
 			cb=Callback(item[1], item[2], 'RESOLVE', 'resolve', lineno)
 			cbCtx.addCb(cb)
 		elif itemEntryType==LogEntryType["SCRIPT_ENTER"]:
@@ -562,11 +474,11 @@ def processLine (line):
 			#sth wierd! some iid has no location in sourceMap
 			if record.iid in sourceMap:
 				record.location=conj.join(sourceMap[record.iid])
+			else:
+				record.location = 'unknown'
 		#isDeclaredLocal
 		record.isDeclaredLocal=funCtx.isDeclaredLocal(record.name)
-		#etp/TODO
-		#env=RegisterRecord.records[record.eid] if RegisterRecord.records.has_key(record.eid) else ResolveRecord.records[record.eid]
-		#env=HappensBeforeRecord.records[record.eid] if HappensBeforeRecord.records.has_key(record.eid) else None
+		#etp/TODO	
 		if record.eid == '0':
 			env = None
 		else:
