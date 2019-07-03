@@ -489,7 +489,9 @@ def processLine (line):
 		record.cbLoc=cbLoc if cbLoc else record.location	
 	
 		if isinstance(record, DataAccessRecord):
+			#1. save record in records
 			cbCtx.addDARecord(record)
+			#2. associate record with its event
 			if cbCtx.top() in cbCtx.cbs:
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
 		else:
@@ -570,5 +572,4 @@ currentSourceFile=None
 funCtx=FunStack()
 cbCtx=CbStack()
 #records=dict()
-fileCtx = FileCbStack()
 

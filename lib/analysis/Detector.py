@@ -6,7 +6,6 @@ lineno = -1
 sourceMap = dict()
 currentSourceFile = None
 cbCtx = TraceParser.CbStack()
-fileCtx = TraceParser.FileCbStack()
 
 def main():
 	traceFile = sys.argv[1]
@@ -23,7 +22,7 @@ def main():
 	parsedResult = TraceParser.processTraceFile(traceFile)
 	#step 2: detect
 	print '*******BEGIN DEBUG*******'
-	z3Scheduler.startDebug(parsedResult, isRace, isChain)
+	#z3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':
