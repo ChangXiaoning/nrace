@@ -192,18 +192,23 @@ class Scheduler:
 			if hasattr(cb, 'end'):
 				self.grid[cb.end]=z3.Int('Instruction_for_%s' %(cb.end))
 				self.solver.add(self.grid[cb.end]>0)	
-			self.grid[cb.register]=z3.Int('Instruction_for_%s' %(cb.register)) 
+			#self.grid[cb.register]=z3.Int('Instruction_for_%s' %(cb.register)) 
+			'''
 			for lineno in cb.records:
 				#print 'lineno in cb.records is: %s' %(lineno)
 				self.grid[lineno]=z3.Int('Instruction_for_%s' %(lineno))
 				self.solver.add(self.grid[lineno]>0)
+			'''
+		for rcdLineno in self.records:
+			self.grid[rcdLineno] = z3.Int('Instruction_for_%s' %(rcdLineno))
+			self.solver.add(self.grid[rcdLineno] > 0)
 		pass
 
 	def addDistinctConstraint (self):
 		self.solver.add(z3.Distinct(self.grid.values()))	
 		pass
 
-	def addProgramAtomicityConstraint (self):
+	def addProgramAtomicityConstraint_bak (self):
 		print("^^^^^^PROGRAM ATOMICITY^^^^^^")
 		consName = 'Atomicity'	
 		for cb in self.cbs.values():
@@ -220,6 +225,10 @@ class Scheduler:
 						self.solver.add(self.grid[cb.instructions[i]] == self.grid[cb.instructions[j]] - 1)
 					i = j
 					j += 1
+		pass
+
+	def addProgramAtomicityConstraint (self):
+		
 		pass
 	
 	def printConstraint (self, consName, lineno_1, lineno_2):
