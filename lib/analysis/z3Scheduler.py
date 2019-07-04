@@ -215,20 +215,28 @@ class Scheduler:
 			#print consName + ' for callback ' + cb.asyncId
 			#should skip the asynchronous file operations	
 			i = 0
+			while i < len(cb.records):
+				if isinstance(self.records[cb.records[i]], TraceParser.FileAccessRecord) and self.records[cb.records[i]].isAsync ==True:
+					break;
+			i += 1;
 			j = i + 1
-			while i < len(cb.instructions) - 1 and j < len(cb.instructions):
-				if cb.instructions[j] in self.records and isinstance(self.records[cb.instructions[j]], TraceParser.FileAccessRecord) and self.records[cb.instructions[j]].isAsync == True:
+			while i < len(cb.records) - 1 and j < len(cb.records):
+				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True:
 					j += 1
 				else:
 					#self.printConstraint(consName, cb.instructions[i], cb.instructions[j])
-					if cb.instructions[i] in self.grid and cb.instructions[j] in self.grid:
-						self.solver.add(self.grid[cb.instructions[i]] == self.grid[cb.instructions[j]] - 1)
+					#if cb.instructions[i] in self.grid and cb.instructions[j] in self.grid:
+					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
 					i = j
 					j += 1
-		pass
-
-	def addProgramAtomicityConstraint (self):
-		
+			if len(cb.records) > 0:
+				if hasattr(cb, 'start'):
+					self.solver.add(self.grid[cb.start] == self.grid[cb.records[0]] - 1)
+				elif hasattr(cb, 'end'):
+					self.solver.add(self.grid[cb.records[lens(cb.records) - 1]] == self.grid[cb.end] - 1)
+			elif hasattr(cb, 'start') and hasattr(cb, 'end'):
+				self.solver.add(self.grid[cb.start] == self.grid[cb.end] - 1)
+				
 		pass
 	
 	def printConstraint (self, consName, lineno_1, lineno_2):
