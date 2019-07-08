@@ -6,6 +6,7 @@ import pprint
 import time
 import z3Scheduler
 import Logging
+import json
 
 logger=Logging.logger
 
@@ -184,7 +185,20 @@ class Callback:
 	def addInstruction (self, lineno):
 		self.instructions.append(lineno)
 		pass
-	'''	
+	'''
+
+	def toJSON (self, file_name):
+		try:
+			with open(file_name, "a+") as f:
+				json.dump(self, f, skipkeys = False, ensure_ascii = False, check_circular = True, allow_nan = True, cls = None, indent = True, separators = None, encoding = 'utf-8', default = None, sort_keys = False)
+		except Exception, e:
+			message = 'Write [%s...] to file [%s] error: json.dump error' %(str(self)[0:10], file_name)
+			print ("%s\n\t%s" %(message, e.message))
+			print ("e.message: %s" %(e.message))
+			return False
+		else:
+			return True
+		pass
 class CbStack:
 
 	def __init__ (self):
@@ -407,8 +421,8 @@ def processLine (line):
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
 
-		print(lineno)
-		print('======line is: %s' %(line))
+		#print(lineno)
+		#print('======line is: %s' %(line))
 	
 		item=line.split(",")
 		itemEntryType=item[0]

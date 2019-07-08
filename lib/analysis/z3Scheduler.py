@@ -140,6 +140,7 @@ class Scheduler:
 		self.files = parsedResult['files']
 		self.reports=list()
 		self.races=list()
+		self.consNumber = 0
 		pass
 
 	def filterCbs (self):
@@ -208,35 +209,63 @@ class Scheduler:
 		self.solver.add(z3.Distinct(self.grid.values()))	
 		pass
 
-	def addProgramAtomicityConstraint_bak (self):
+	def addProgramAtomicityConstraint (self):
 		print("^^^^^^PROGRAM ATOMICITY^^^^^^")
 		consName = 'Atomicity'	
 		for cb in self.cbs.values():
-			#print consName + ' for callback ' + cb.asyncId
-			#should skip the asynchronous file operations	
+			print consName + ' for callback ' + cb.asyncId
+			printObj(cb)
+
+			if len(cb.records) == 0:
+				'''
+				if hasattr(cb, 'start') and hasattr(cb, 'end'):
+					self.solver.add(self.grid[cb.start] == self.grid[cb.end] - 1)
+				'''
+				continue
+
+			#should skip the asynchronous file operations
 			i = 0
-			while i < len(cb.records):
+			j = 0
+			while i < len(cb.records): 
 				if isinstance(self.records[cb.records[i]], TraceParser.FileAccessRecord) and self.records[cb.records[i]].isAsync ==True:
-					break;
-			i += 1;
-			j = i + 1
+					i += 1
+				else:
+					break
+
+			#if there is no file operations in cb, i stop at DataAccessRecord
+			#else i stops at FileAccessRecord
+			if i == 0:
+				self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
+				print("Atomicity: %s == %s -1" %(cb.start, cb.records[i]))
+			'''
+			else:
+				self.solver.add(self.grid[cb.start] < self.grid[cb.records[i]])
+				print("Atomicity: %s < %s" %(cb.start, cb.records[i]))
+			'''
+			j = i + 1	
+			#print("1. i: %s, j: %s" %(i, j))
+			
 			while i < len(cb.records) - 1 and j < len(cb.records):
+				#print("2. i: %s, j: %s" %(i, j))
 				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True:
 					j += 1
 				else:
 					#self.printConstraint(consName, cb.instructions[i], cb.instructions[j])
 					#if cb.instructions[i] in self.grid and cb.instructions[j] in self.grid:
 					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
+					print("Atomicity: %s == %s -1" %(cb.records[i], cb.records[j]))
+					#self.consNumber += 1
+					#self.printConstraint(consName, cb.records[i], cb.records[j])
 					i = j
 					j += 1
-			if len(cb.records) > 0:
-				if hasattr(cb, 'start'):
-					self.solver.add(self.grid[cb.start] == self.grid[cb.records[0]] - 1)
-				elif hasattr(cb, 'end'):
-					self.solver.add(self.grid[cb.records[lens(cb.records) - 1]] == self.grid[cb.end] - 1)
-			elif hasattr(cb, 'start') and hasattr(cb, 'end'):
-				self.solver.add(self.grid[cb.start] == self.grid[cb.end] - 1)
-				
+			
+			#printObj(self.records[len(cb.records) - 1])
+			'''
+			if isinstance(self.records[cb.records[len(cb.records) - 1]], TraceParser.DataAccessRecord) or isinstance(self.records[cb.records[len(cb.records) - 1]], TraceParser.FileAccessRecord) and self.records[cb.records[len(cb.records) - 1]].isAsync == False:
+				if hasattr(cb, 'end'):
+					self.solver.add(self.grid[cb.records[len(cb.records) - 1]] == self.grid[cb.end])
+			'''
+		print("after atomicity: %s" %(self.check()))
 		pass
 	
 	def printConstraint (self, consName, lineno_1, lineno_2):
@@ -261,13 +290,21 @@ class Scheduler:
 
 	def addRegisterandResolveConstraint (self):
 		print("^^^^^REGISTER AND RESOLVE^^^^^^")
+		consName = 'Register'
+
 		for cb in self.cbs.values():
-			if not hasattr(cb, 'start'):
+			print(cb.asyncId)
+			printObj(cb)
+
+		for cb in self.cbs.values():
+			if not hasattr(cb, 'start') or not hasattr(cb, 'postCbs'):
 				continue
 			for postCbList in cb.postCbs.values():
 				for postCb in postCbList:
-					if hasattr(postCb, 'start'):
-						self.solver.add(se;f.grid[cb.start] < self.grid[postCb.start])
+					if hasattr(self.cbs[postCb], 'start'):
+						print("ADD %s < %s" %(cb.asyncId, self.cbs[postCb].asyncId))
+						self.printConstraint(consName, cb.start, self.cbs[postCb].start)
+						self.solver.add(self.grid[cb.start] < self.grid[self.cbs[postCb].start])
 		pass
 
 	def addPriorityConstraint (self):
@@ -416,13 +453,13 @@ class Scheduler:
 		self.solver.add(self.grid[lineno1]<self.grid[lineno2])
 		res=self.check()
 		self.solver.pop()
-		#print '1. res is: %s' %(res)
+		print '1. res is: %s' %(res)
 		if not res:
 			return False
 		self.solver.push()
 		self.solver.add(self.grid[lineno2]<self.grid[lineno1])
 		res=self.check()
-		#print '2. res is: %s' %(res)
+		print '2. res is: %s' %(res)
 		self.solver.pop()
 		if res:
 			return False
@@ -458,9 +495,11 @@ class Scheduler:
 		pass
 	'''
 	def isConcurrent_new_1 (self, lineno1, lineno2):	
+		print("before all: %s" %(self.check()))
 		self.solver.push()
 		self.solver.add(self.grid[lineno1]<self.grid[lineno2])
 		res=self.check()
+		print("%s<%s: %s" %(lineno1, lineno2, res))
 		self.solver.pop()
 		if not res:
 			#print("NOT 1<2")
@@ -468,6 +507,7 @@ class Scheduler:
 		self.solver.push()
 		self.solver.add(self.grid[lineno2]<self.grid[lineno1])
 		res=self.check()
+		print("%s>%s: %s" %(lineno1, lineno2, res))
 		self.solver.pop()
 		if not res:
 			#print("NOT 1>2")
@@ -659,13 +699,13 @@ class Scheduler:
 			#detect W race with W
 			for i in range(0, len(WList)-1):
 				for j in range(i+1, len(WList)):
-					'''			
+								
 					print("i:")
 					printObj(self.records[WList[i]])
 					print("j:")
 					printObj(self.records[WList[j]])
 					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
-					'''
+					
 					if not self.isConcurrent_new_1(WList[i], WList[j]):
 						continue
 					#race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
@@ -674,6 +714,11 @@ class Scheduler:
 			#detect W race with R
 			for i in range(0, len(WList)):
 				for j in range(0, len(RList)):
+					print("i:")
+					printObj(self.records[WList[i]])
+					print("j:")
+					printObj(self.records[RList[j]])
+					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
 					if not self.isConcurrent_new_1(WList[i], RList[j]):
 						continue
 					#race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
@@ -710,18 +755,18 @@ class Scheduler:
 					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
 					printObj(accessList[j])
 					'''
-					if accessList[i].isAsync != accessList[j].isAsync:
+					if self.records[accessList[i]].isAsync != self.records[accessList[j]].isAsync:
 						#print 'THEY HAVE DIFFERENT ASYNC'
 						continue
-					elif not self.matchFileRacePattern(accessList[i], accessList[j]):
+					elif not self.matchFileRacePattern(self.records[accessList[i]], self.records[accessList[j]]):
 						#print 'NOT MATCH'
 						continue
-					elif not self.isConcurrent_new_1(accessList[i].lineno, accessList[j].lineno):
+					elif not self.isConcurrent_new_1(self.records[accessList[i]].lineno, self.records[accessList[j]].lineno):
 						#print 'NOT CONCURRENT'
 						continue
 					else:
-						pattern = accessList[i].accessType + '_' +accessList[j].accessType
-						race = Race(pattern, accessList[i], accessList[j])
+						pattern = self.records[accessList[i]].accessType + '_' +self.records[accessList[j]].accessType
+						race = Race(pattern, self.records[accessList[i]], self.records[accessList[j]])
 						self.races.append(race)	
 		pass
 
@@ -815,6 +860,7 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addRegisterandResolveConstraint()
 	scheduler.addPriorityConstraint()
 	scheduler.addFsConstraint()
+	
 	if not isRace:
 		scheduler.addPatternConstraint()
 		#scheduler.check()
@@ -823,4 +869,5 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.detectRace()
 		scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
+	
 	pass
