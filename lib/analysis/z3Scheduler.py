@@ -247,7 +247,7 @@ class Scheduler:
 		print consName.upper() + ': ' + str(cb_1) + ' < ' + str(cb_2)
 		pass
 
-	def addRegisterandResolveConstraint (self):
+	def addRegisterandResolveConstraint_bak (self):
 		
 		print("^^^^^^REGISTER AND RESOLVE^^^^^^")
 
@@ -259,25 +259,15 @@ class Scheduler:
 				#self.printCbCons(consName, cb.prior, cb.asyncId)
 		pass
 
-	def addPriorityConstraint_bak (self):
-		
+	def addRegisterandResolveConstraint (self):
+		print("^^^^^REGISTER AND RESOLVE^^^^^^")
 		for cb in self.cbs.values():
-			if not hasattr(cb, 'postCbs'):
+			if not hasattr(cb, 'start'):
 				continue
-			#constraint: same priority
-			for cbList in cb.postCbs.values():
-				if len(cbList)<=1:
-					continue
-				for i in range(0, len(cbList)-1):
-					self.solver.add(self.grid[self.cbs[cbList[i]].start]<self.grid[self.cbs[cbList[i+1]].start])
-			#constraint: different priority
-			cbListList=cb.postCbs.values()
-			for i in range(0, len(cbListList)-1):
-				cbList1=cbListList[i]
-				cbList2=cbListList[i+1]
-				for cb1 in cbList1:
-					for cb2 in cbList2:
-						self.solver.add(self.grid[self.cbs[cb1].start]<self.grid[self.cbs[cb2].start])
+			for postCbList in cb.postCbs.values():
+				for postCb in postCbList:
+					if hasattr(postCb, 'start'):
+						self.solver.add(se;f.grid[cb.start] < self.grid[postCb.start])
 		pass
 
 	def addPriorityConstraint (self):
