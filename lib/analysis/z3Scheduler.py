@@ -213,8 +213,8 @@ class Scheduler:
 		print("^^^^^^PROGRAM ATOMICITY^^^^^^")
 		consName = 'Atomicity'	
 		for cb in self.cbs.values():
-			print consName + ' for callback ' + cb.asyncId
-			printObj(cb)
+			#print consName + ' for callback ' + cb.asyncId
+			#printObj(cb)
 
 			if len(cb.records) == 0:
 				'''
@@ -236,7 +236,7 @@ class Scheduler:
 			#else i stops at FileAccessRecord
 			if i == 0:
 				self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
-				print("Atomicity: %s == %s -1" %(cb.start, cb.records[i]))
+				#print("Atomicity: %s == %s -1" %(cb.start, cb.records[i]))
 			'''
 			else:
 				self.solver.add(self.grid[cb.start] < self.grid[cb.records[i]])
@@ -253,7 +253,7 @@ class Scheduler:
 					#self.printConstraint(consName, cb.instructions[i], cb.instructions[j])
 					#if cb.instructions[i] in self.grid and cb.instructions[j] in self.grid:
 					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
-					print("Atomicity: %s == %s -1" %(cb.records[i], cb.records[j]))
+					#print("Atomicity: %s == %s -1" %(cb.records[i], cb.records[j]))
 					#self.consNumber += 1
 					#self.printConstraint(consName, cb.records[i], cb.records[j])
 					i = j
@@ -265,7 +265,7 @@ class Scheduler:
 				if hasattr(cb, 'end'):
 					self.solver.add(self.grid[cb.records[len(cb.records) - 1]] == self.grid[cb.end])
 			'''
-		print("after atomicity: %s" %(self.check()))
+		#print("after atomicity: %s" %(self.check()))
 		pass
 	
 	def printConstraint (self, consName, lineno_1, lineno_2):
@@ -291,19 +291,19 @@ class Scheduler:
 	def addRegisterandResolveConstraint (self):
 		print("^^^^^REGISTER AND RESOLVE^^^^^^")
 		consName = 'Register'
-
+		'''
 		for cb in self.cbs.values():
 			print(cb.asyncId)
 			printObj(cb)
-
+		'''
 		for cb in self.cbs.values():
 			if not hasattr(cb, 'start') or not hasattr(cb, 'postCbs'):
 				continue
 			for postCbList in cb.postCbs.values():
 				for postCb in postCbList:
 					if hasattr(self.cbs[postCb], 'start'):
-						print("ADD %s < %s" %(cb.asyncId, self.cbs[postCb].asyncId))
-						self.printConstraint(consName, cb.start, self.cbs[postCb].start)
+						#print("ADD %s < %s" %(cb.asyncId, self.cbs[postCb].asyncId))
+						#self.printConstraint(consName, cb.start, self.cbs[postCb].start)
 						self.solver.add(self.grid[cb.start] < self.grid[self.cbs[postCb].start])
 		pass
 
@@ -495,11 +495,11 @@ class Scheduler:
 		pass
 	'''
 	def isConcurrent_new_1 (self, lineno1, lineno2):	
-		print("before all: %s" %(self.check()))
+		#print("before all: %s" %(self.check()))
 		self.solver.push()
 		self.solver.add(self.grid[lineno1]<self.grid[lineno2])
 		res=self.check()
-		print("%s<%s: %s" %(lineno1, lineno2, res))
+		#print("%s<%s: %s" %(lineno1, lineno2, res))
 		self.solver.pop()
 		if not res:
 			#print("NOT 1<2")
@@ -507,7 +507,7 @@ class Scheduler:
 		self.solver.push()
 		self.solver.add(self.grid[lineno2]<self.grid[lineno1])
 		res=self.check()
-		print("%s>%s: %s" %(lineno1, lineno2, res))
+		#print("%s>%s: %s" %(lineno1, lineno2, res))
 		self.solver.pop()
 		if not res:
 			#print("NOT 1>2")
@@ -699,13 +699,13 @@ class Scheduler:
 			#detect W race with W
 			for i in range(0, len(WList)-1):
 				for j in range(i+1, len(WList)):
-								
+					'''				
 					print("i:")
 					printObj(self.records[WList[i]])
 					print("j:")
 					printObj(self.records[WList[j]])
 					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
-					
+					'''
 					if not self.isConcurrent_new_1(WList[i], WList[j]):
 						continue
 					#race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
@@ -714,11 +714,13 @@ class Scheduler:
 			#detect W race with R
 			for i in range(0, len(WList)):
 				for j in range(0, len(RList)):
+					'''
 					print("i:")
 					printObj(self.records[WList[i]])
 					print("j:")
 					printObj(self.records[RList[j]])
 					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
+					'''
 					if not self.isConcurrent_new_1(WList[i], RList[j]):
 						continue
 					#race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
