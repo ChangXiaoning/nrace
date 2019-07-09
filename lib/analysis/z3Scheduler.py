@@ -302,7 +302,7 @@ class Scheduler:
 			if hasattr(cb, 'start'):
 				self.solver.add(self.grid[cb.register]<self.grid[cb.start])
 				#self.printConstraint(consName, cb.register, cb.start)
-				#self.printCbCons(consName, cb.prior, cb.asyncId)
+				self.printCbCons(consName, cb.prior, cb.asyncId)
 		pass
 
 	def addRegisterandResolveConstraint (self):
@@ -326,6 +326,8 @@ class Scheduler:
 						self.register_number += 1
 		
 		print("Register number: %s\n" %(self.register_number))
+		#print("after register: %s" %(self.check()))
+
 		pass
 
 	def addPriorityConstraint (self):
@@ -368,6 +370,7 @@ class Scheduler:
 							self.solver.add(self.grid[self.cbs[asynIds[i]].start]>self.grid[self.cbs[asynIds[j]].start])
 							self.priority_num += 1
 							#print '2. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
+					'''
 					#different prior (father)
 					#check whether their father have happensBefore relation
 					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[i]].prior], self.cbs[self.cbs[asynIds[j]].prior]):
@@ -378,6 +381,7 @@ class Scheduler:
 						self.solver.add(self.grid[self.cbs[asynIds[j]].start]<self.grid[self.cbs[asynIds[i]].start])
 						self.priority_num += 1
 						#print '4. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
+					'''
 				#different priority and one of them is of priority 1
 				#change: priority 0
 				elif (self.cbs[asynIds[i]].priority!=self.cbs[asynIds[j]].priority and (self.cbs[asynIds[i]].priority=='0' or self.cbs[asynIds[j]].priority=='0')):
@@ -392,12 +396,13 @@ class Scheduler:
 						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
 						self.priority_num += 1
 						#print '5. add a constraint: cb_%s<cb_%s' %(ealier, later)
+					'''
 					#different prior (father)
 					elif self.cbHappensBefore(self.cbs[self.cbs[ealier].prior], self.cbs[self.cbs[later].prior]):
 						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
 						self.priority_num += 1
 						#print '6. add a constraint: cb_%s<cb_%s' %(ealier, later)
-		
+					'''
 		print("Priority number: %s\n" %(self.priority_num))
 		pass
 
@@ -408,16 +413,22 @@ class Scheduler:
 	def addFsConstraint (self):
 		#TODO: if refactor, this needs to update
 		print("^^^^^^FS CONSTRAINT^^^^^^")
+		self.file_constraint_num = 0
 		#print '=====addFSconstraint====='
 		consName = 'fsConstraint'
 		for rcd in self.records.values():
 			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
 				#constraint 1: asynchronous file operation happens after the callback that launches it
 				self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
-				self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
+				self.file_constraint_num += 1
+				#self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
 				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
 				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
-				self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
+				self.file_constraint_num += 1
+				#self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
+
+		#print("after file constraint: %s" %(self.check()))
+		print("File number: %s\n" %(self.file_constraint_num))
 		pass
 	'''
 	def reorder (self, lineno1, lineno2):
@@ -567,12 +578,15 @@ class Scheduler:
 		pass	
 
 	def isConcurrent_new_1 (self, lineno1, lineno2):
+		#print("before all: %s" %(self.check()))
 		earlier = lineno1 if lineno1 < lineno2 else lineno2
 		later = lineno2 if lineno1 < lineno2 else lineno1
 		
+		#print("already know %s happens before %s" %(earlier, later))
 		self.solver.push()
 		self.solver.add(self.grid[earlier] > self.grid[later])
 		res = self.check()
+		#print("solver: %s happens before %s is %s" %(later, earlier, res))
 		self.solver.pop()
 		if res:
 			return True
@@ -753,8 +767,29 @@ class Scheduler:
 					self.races.append(race)
 		pass
 
+	def isConcurrent_for_var (self, lineno1, lineno2):
+		#print("before isConcurrent for var: %s" %(self.check()))
+		earlier = lineno1 if lineno1 < lineno2 else lineno2
+		later = lineno2 if lineno1 < lineno2 else lineno1
+		
+		#print("already know %s happens before %s" %(earlier, later))
+		self.solver.push()
+		self.solver.add(self.grid[self.cbs[self.records[earlier].eid].start] == self.grid[earlier] - 1)
+		self.solver.add(self.grid[self.cbs[self.records[later].eid].start] == self.grid[later] - 1)
+
+		self.solver.add(self.grid[earlier] > self.grid[later])
+		res = self.check()
+		#print("solver: %s happens before %s is %s" %(later, earlier, res))
+		self.solver.pop()
+		if res:
+			return True
+		else:
+			return False
+		pass
+
 	def detectRace (self):
 		print("^^^^^^START DETECT RACE^^^^^^\n")
+		print("size: %s" %(len(self.variables)))
 		for var in self.variables:
 			RList=self.variables[var]['R']
 			WList=self.variables[var]['W']
@@ -769,19 +804,18 @@ class Scheduler:
 					print("j:")
 					printObj(self.records[WList[j]])
 					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
-					'''
-
+					
 					self.solver.push()
 					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
 					self.solver.add(self.grid[self.cbs[self.records[WList[j]].eid].start] == self.grid[WList[j]] - 1)
-
-					if not self.isConcurrent_new_1(WList[i], WList[j]):
+					'''
+					if not self.isConcurrent_for_var(WList[i], WList[j]):
 						continue
 					#race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
 					race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 					self.races.append(race)
 
-					self.solver.pop()
+					#self.solver.pop()
 			#detect W race with R
 			for i in range(0, len(WList)):
 				for j in range(0, len(RList)):
@@ -791,19 +825,19 @@ class Scheduler:
 					print("j:")
 					printObj(self.records[RList[j]])
 					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
-					'''
+					
 
 					self.solver.push()
 					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
 					self.solver.add(self.grid[self.cbs[self.records[RList[j]].eid].start] == self.grid[RList[j]] - 1)
-
-					if not self.isConcurrent_new_1(WList[i], RList[j]):
+					'''
+					if not self.isConcurrent_for_var(WList[i], RList[j]):
 						continue
 					#race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
 					race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 					self.races.append(race)
 
-					self.solver.pop()
+					#self.solver.pop()
 		pass
 
 	def matchFileRacePattern (self, rcd1, rcd2):
@@ -814,14 +848,15 @@ class Scheduler:
 	def detectFileRace (self):
 		
 		print '=======Detect FS Race======'
-		
+		#print("before detect file: %s" %(self.check()))
+		'''
 		for f in self.files:
 			print 'file %s' %(f)
 			print type(self.files[f])
 			for i in range(0, len(self.files[f])):
 				print type(self.files[f][i])
 				printObj(self.records[self.files[f][i]])
-		
+		'''
 		for f in self.files:
 			accessList = self.files[f]
 			if len(accessList) < 2:
@@ -829,20 +864,30 @@ class Scheduler:
 			#print 'file %s: ' %(f)
 			for i in range(0, len(accessList) - 1):
 				for j in range(i + 1, len(accessList)):
-					
+					'''
 					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
 					#printObj(accessList[i])
 					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
 					#printObj(accessList[j])
-					
+					'''
 					if self.records[accessList[i]].isAsync != self.records[accessList[j]].isAsync:
-						print 'THEY HAVE DIFFERENT ASYNC'
-						continue
+						#print 'THEY HAVE DIFFERENT ASYNC'
+						continue	
 					elif not self.matchFileRacePattern(self.records[accessList[i]], self.records[accessList[j]]):
-						print 'NOT MATCH'
+						#print 'NOT MATCH'
 						continue
+					elif self.records[accessList[i]].isAsync == False:
+						if self.records[accessList[i]].eid == self.records[accessList[j]].eid:
+							continue
+						elif not self.cbHappensBefore(self.cbs[self.records[accssList[i]].eid], self.cbs[self.records[accssList[j]].eid]):
+							#print("SYNC AND NOT CONCURRENT")
+							continue
+						else:
+							pattern = self.records[accessList[i]].accessType + '_' +self.records[accessList[j]].accessType
+							race = Race(pattern, self.records[accessList[i]], self.records[accessList[j]])
+							self.races.append(race)
 					elif not self.isConcurrent_new_1(self.records[accessList[i]].lineno, self.records[accessList[j]].lineno):
-						print 'NOT CONCURRENT'
+						#print 'NOT CONCURRENT'
 						continue
 					else:
 						pattern = self.records[accessList[i]].accessType + '_' +self.records[accessList[j]].accessType
@@ -934,20 +979,20 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler=Scheduler(parsedResult)
 	scheduler.filterCbs()
 	scheduler.createOrderVariables()
-	
+	'''	
 	scheduler.addDistinctConstraint()
 	#scheduler.addProgramAtomicityConstraint()
 	scheduler.addRegisterandResolveConstraint()
 	scheduler.addPriorityConstraint()
 	scheduler.addFsConstraint()
-			
+	'''			
 	if not isRace:
 		scheduler.addPatternConstraint()
 		#scheduler.check()
 		scheduler.printReports()	
 	else:
 		scheduler.detectRace()
-		scheduler.detectFileRace()
+		#scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
 	
 	print '*******END DEBUG*******'
