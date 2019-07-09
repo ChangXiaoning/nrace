@@ -414,10 +414,10 @@ class Scheduler:
 			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
 				#constraint 1: asynchronous file operation happens after the callback that launches it
 				self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
-				#self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
+				self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
 				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
 				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
-				#self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
+				self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
 		pass
 	'''
 	def reorder (self, lineno1, lineno2):
@@ -770,11 +770,18 @@ class Scheduler:
 					printObj(self.records[WList[j]])
 					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
 					'''
+
+					self.solver.push()
+					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
+					self.solver.add(self.grid[self.cbs[self.records[WList[j]].eid].start] == self.grid[WList[j]] - 1)
+
 					if not self.isConcurrent_new_1(WList[i], WList[j]):
 						continue
 					#race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
 					race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 					self.races.append(race)
+
+					self.solver.pop()
 			#detect W race with R
 			for i in range(0, len(WList)):
 				for j in range(0, len(RList)):
@@ -785,11 +792,18 @@ class Scheduler:
 					printObj(self.records[RList[j]])
 					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
 					'''
+
+					self.solver.push()
+					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
+					self.solver.add(self.grid[self.cbs[self.records[RList[j]].eid].start] == self.grid[RList[j]] - 1)
+
 					if not self.isConcurrent_new_1(WList[i], RList[j]):
 						continue
 					#race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
 					race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 					self.races.append(race)
+
+					self.solver.pop()
 		pass
 
 	def matchFileRacePattern (self, rcd1, rcd2):
@@ -798,7 +812,7 @@ class Scheduler:
 		pass
 
 	def detectFileRace (self):
-		'''
+		
 		print '=======Detect FS Race======'
 		
 		for f in self.files:
@@ -806,8 +820,8 @@ class Scheduler:
 			print type(self.files[f])
 			for i in range(0, len(self.files[f])):
 				print type(self.files[f][i])
-				printObj(self.files[f][i])
-		'''
+				printObj(self.records[self.files[f][i]])
+		
 		for f in self.files:
 			accessList = self.files[f]
 			if len(accessList) < 2:
@@ -815,20 +829,20 @@ class Scheduler:
 			#print 'file %s: ' %(f)
 			for i in range(0, len(accessList) - 1):
 				for j in range(i + 1, len(accessList)):
-					'''
+					
 					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
-					printObj(accessList[i])
+					#printObj(accessList[i])
 					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
-					printObj(accessList[j])
-					'''
+					#printObj(accessList[j])
+					
 					if self.records[accessList[i]].isAsync != self.records[accessList[j]].isAsync:
-						#print 'THEY HAVE DIFFERENT ASYNC'
+						print 'THEY HAVE DIFFERENT ASYNC'
 						continue
 					elif not self.matchFileRacePattern(self.records[accessList[i]], self.records[accessList[j]]):
-						#print 'NOT MATCH'
+						print 'NOT MATCH'
 						continue
 					elif not self.isConcurrent_new_1(self.records[accessList[i]].lineno, self.records[accessList[j]].lineno):
-						#print 'NOT CONCURRENT'
+						print 'NOT CONCURRENT'
 						continue
 					else:
 						pattern = self.records[accessList[i]].accessType + '_' +self.records[accessList[j]].accessType
@@ -925,8 +939,8 @@ def startDebug(parsedResult, isRace, isChain):
 	#scheduler.addProgramAtomicityConstraint()
 	scheduler.addRegisterandResolveConstraint()
 	scheduler.addPriorityConstraint()
-	#scheduler.addFsConstraint()
-	'''		
+	scheduler.addFsConstraint()
+			
 	if not isRace:
 		scheduler.addPatternConstraint()
 		#scheduler.check()
@@ -935,6 +949,6 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.detectRace()
 		scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
-	'''
+	
 	print '*******END DEBUG*******'
 	pass
