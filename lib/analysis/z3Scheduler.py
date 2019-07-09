@@ -342,7 +342,7 @@ class Scheduler:
 		asynIds=map(lambda x: str(x), asynIds)
 	
 		#not consider the glocal script callback
-		for i in range(1, len(asynIds)-1):
+		for i in range(1, len(asynIds) - 1):
 			
 			if not hasattr(self.cbs[asynIds[i]], 'start'):
 				continue
@@ -497,8 +497,9 @@ class Scheduler:
 			return True
 		pass
 
-	def cbHappensBefore (self, cb1, cb2):
-
+	def cbHappensBefore_bak (self, cb1, cb2):
+		
+		print("THIS IS cbhappensbefore");
 		if cb1==None or cb2==None or cb1==cb2:
 			return False
 		self.solver.push()
@@ -516,6 +517,24 @@ class Scheduler:
 		else:
 			return True
 		pass
+
+	def cbHappensBefore (self, cb1, cb2):
+		if cb1 == None or cb2 == None or cb1 == cb2:
+			return False
+		
+		earlier = cb1 if cb1.start < cb2.start else cb2
+		later = cb2 if cb1.start < cb2.start else cb1
+
+		self.solver.push()
+		self.solver.add(self.grid[earlier.start] > self.grid[later.start])
+		res = self.check()
+		self.solver.pop()
+		if res:
+			return False
+		else:
+			return True
+		pass
+
 	'''
 	def isConcurrent_new (self, lineno1, lineno2):
 		print '**********isConcurrent_new: '
@@ -524,7 +543,7 @@ class Scheduler:
 		return self.happensBefore(lineno1, lineno2) and self.happensBefore(lineno2, lineno1)
 		pass
 	'''
-	def isConcurrent_new_1 (self, lineno1, lineno2):	
+	def isConcurrent_new__1_bak (self, lineno1, lineno2):	
 		#print("before all: %s" %(self.check()))
 		
 		self.solver.push()
@@ -546,6 +565,20 @@ class Scheduler:
 		else:
 			return True
 		pass	
+
+	def isConcurrent_new_1 (self, lineno1, lineno2):
+		earlier = lineno1 if lineno1 < lineno2 else lineno2
+		later = lineno2 if lineno1 < lineno2 else lineno1
+		
+		self.solver.push()
+		self.solver.add(self.grid[earlier] > self.grid[later])
+		res = self.check()
+		self.solver.pop()
+		if res:
+			return True
+		else:
+			return False
+		pass
 
 	def addW_W_RPattern (self):
 
@@ -721,7 +754,7 @@ class Scheduler:
 		pass
 
 	def detectRace (self):
-
+		print("^^^^^^START DETECT RACE^^^^^^\n")
 		for var in self.variables:
 			RList=self.variables[var]['R']
 			WList=self.variables[var]['W']
@@ -889,18 +922,18 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.createOrderVariables()
 	
 	scheduler.addDistinctConstraint()
-	scheduler.addProgramAtomicityConstraint()
+	#scheduler.addProgramAtomicityConstraint()
 	scheduler.addRegisterandResolveConstraint()
 	scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-	'''	
+	'''		
 	if not isRace:
 		scheduler.addPatternConstraint()
 		#scheduler.check()
 		scheduler.printReports()	
 	else:
 		scheduler.detectRace()
-		#scheduler.detectFileRace()
+		scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
 	'''
 	print '*******END DEBUG*******'
