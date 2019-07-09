@@ -179,22 +179,28 @@ class Scheduler:
 			if not cb.postCbs:
 				del cb.postCbs
 		self.cbs=cbs
-		
+	
+		self.event_num = len(self.cbs)
+		print("^^^^^^^^^SIZE^^^^^^^^^^^:\nEvent number: %s\n" %(self.event_num))
 		pass
 
 	def createOrderVariables (self):
 		print('^^^^^^CREATE ORDER VARIABLE^^^^^^')
+		count = 0
+
 		for cb in self.cbs.values():
 			if hasattr(cb, 'start'):
 				self.grid[cb.start]=z3.Int('Instruction_for_%s' %(cb.start))
-				self.solver.add(self.grid[cb.start]>0)
+				count += 1
+				#self.solver.add(self.grid[cb.start]>0)
 			#if cb.asyncId == '1':
 				#print("CB HAS END: %s" %(hasattr(cb, 'end')))
+			'''
 			if hasattr(cb, 'end'):
 				self.grid[cb.end]=z3.Int('Instruction_for_%s' %(cb.end))
 				self.solver.add(self.grid[cb.end]>0)	
 			#self.grid[cb.register]=z3.Int('Instruction_for_%s' %(cb.register)) 
-			'''
+			
 			for lineno in cb.records:
 				#print 'lineno in cb.records is: %s' %(lineno)
 				self.grid[lineno]=z3.Int('Instruction_for_%s' %(lineno))
@@ -202,7 +208,12 @@ class Scheduler:
 			'''
 		for rcdLineno in self.records:
 			self.grid[rcdLineno] = z3.Int('Instruction_for_%s' %(rcdLineno))
+			count += 1
 			self.solver.add(self.grid[rcdLineno] > 0)
+		
+		self.order_variable_num = count
+
+		print("Variable number: %s\n" %(self.order_variable_num))
 		pass
 
 	def addDistinctConstraint (self):
@@ -211,6 +222,7 @@ class Scheduler:
 
 	def addProgramAtomicityConstraint (self):
 		print("^^^^^^PROGRAM ATOMICITY^^^^^^")
+		count = 0
 		consName = 'Atomicity'	
 		for cb in self.cbs.values():
 			#print consName + ' for callback ' + cb.asyncId
@@ -236,6 +248,7 @@ class Scheduler:
 			#else i stops at FileAccessRecord
 			if i == 0:
 				self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
+				count += 1
 				#print("Atomicity: %s == %s -1" %(cb.start, cb.records[i]))
 			'''
 			else:
@@ -253,6 +266,7 @@ class Scheduler:
 					#self.printConstraint(consName, cb.instructions[i], cb.instructions[j])
 					#if cb.instructions[i] in self.grid and cb.instructions[j] in self.grid:
 					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
+					count += 1
 					#print("Atomicity: %s == %s -1" %(cb.records[i], cb.records[j]))
 					#self.consNumber += 1
 					#self.printConstraint(consName, cb.records[i], cb.records[j])
@@ -266,6 +280,9 @@ class Scheduler:
 					self.solver.add(self.grid[cb.records[len(cb.records) - 1]] == self.grid[cb.end])
 			'''
 		#print("after atomicity: %s" %(self.check()))
+
+		self.atomicity_constraint_num = count
+		print("Atomicity constraint number: %s\n" %(self.atomicity_constraint_num))
 		pass
 	
 	def printConstraint (self, consName, lineno_1, lineno_2):
@@ -291,11 +308,12 @@ class Scheduler:
 	def addRegisterandResolveConstraint (self):
 		print("^^^^^REGISTER AND RESOLVE^^^^^^")
 		consName = 'Register'
+		self.register_number = 0
 		'''
 		for cb in self.cbs.values():
 			print(cb.asyncId)
 			printObj(cb)
-		'''
+		'''	
 		for cb in self.cbs.values():
 			if not hasattr(cb, 'start') or not hasattr(cb, 'postCbs'):
 				continue
@@ -305,6 +323,9 @@ class Scheduler:
 						#print("ADD %s < %s" %(cb.asyncId, self.cbs[postCb].asyncId))
 						#self.printConstraint(consName, cb.start, self.cbs[postCb].start)
 						self.solver.add(self.grid[cb.start] < self.grid[self.cbs[postCb].start])
+						self.register_number += 1
+		
+		print("Register number: %s\n" %(self.register_number))
 		pass
 
 	def addPriorityConstraint (self):
@@ -314,7 +335,8 @@ class Scheduler:
 			printObj(cb)
 		'''
 		print("^^^^^^^PRIORITY^^^^^^")
-		
+		self.priority_num = 0
+
 		asynIds=map(lambda x: int(x), self.cbs.keys())
 		asynIds.sort()	
 		asynIds=map(lambda x: str(x), asynIds)
@@ -340,17 +362,21 @@ class Scheduler:
 							#printObj[self.cbs[asynIds[i]]]
 							#printObj[self.cbs[asynIds[j]]]
 							self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
+							self.priority_num += 1
 							#print '1. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
 						else:
 							self.solver.add(self.grid[self.cbs[asynIds[i]].start]>self.grid[self.cbs[asynIds[j]].start])
+							self.priority_num += 1
 							#print '2. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
 					#different prior (father)
 					#check whether their father have happensBefore relation
 					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[i]].prior], self.cbs[self.cbs[asynIds[j]].prior]):
 						self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
+						self.priority_num += 1
 						#print '3. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
 					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[j]].prior], self.cbs[self.cbs[asynIds[i]].prior]):
 						self.solver.add(self.grid[self.cbs[asynIds[j]].start]<self.grid[self.cbs[asynIds[i]].start])
+						self.priority_num += 1
 						#print '4. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
 				#different priority and one of them is of priority 1
 				#change: priority 0
@@ -364,11 +390,15 @@ class Scheduler:
 					#same prior (father)
 					if self.cbs[ealier].prior==self.cbs[later].prior:
 						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
+						self.priority_num += 1
 						#print '5. add a constraint: cb_%s<cb_%s' %(ealier, later)
 					#different prior (father)
 					elif self.cbHappensBefore(self.cbs[self.cbs[ealier].prior], self.cbs[self.cbs[later].prior]):
 						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
+						self.priority_num += 1
 						#print '6. add a constraint: cb_%s<cb_%s' %(ealier, later)
+		
+		print("Priority number: %s\n" %(self.priority_num))
 		pass
 
 	def addsetTimeoutPriority (self):
@@ -496,6 +526,7 @@ class Scheduler:
 	'''
 	def isConcurrent_new_1 (self, lineno1, lineno2):	
 		#print("before all: %s" %(self.check()))
+		
 		self.solver.push()
 		self.solver.add(self.grid[lineno1]<self.grid[lineno2])
 		res=self.check()
@@ -861,15 +892,16 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addProgramAtomicityConstraint()
 	scheduler.addRegisterandResolveConstraint()
 	scheduler.addPriorityConstraint()
-	scheduler.addFsConstraint()
-	
+	#scheduler.addFsConstraint()
+	'''	
 	if not isRace:
 		scheduler.addPatternConstraint()
 		#scheduler.check()
 		scheduler.printReports()	
 	else:
 		scheduler.detectRace()
-		scheduler.detectFileRace()
+		#scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
-	
+	'''
+	print '*******END DEBUG*******'
 	pass
