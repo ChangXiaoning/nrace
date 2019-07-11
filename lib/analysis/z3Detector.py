@@ -29,44 +29,6 @@ def printObj (obj):
 	#print 'items: 	', ','.join(['%s:%s' % item for item in obj.__dict__.items()])
 	pass
 
-class Report:
-
-	def __init__ (self, pattern, daRcd1, daRcd2, daRcd3):
-		#daRcd1, daRcd2 are consecutively executed
-
-		self.pattern=pattern
-		self.triple=[daRcd1, daRcd2, daRcd3]
-		self.footprint=self.triple[0].cbLoc+'->'+self.triple[1].cbLoc+'->'+self.triple[2].cbLoc
-		self.equivalent=list()
-		self.ref=daRcd1.ref
-		self.name=daRcd1.name
-		pass
-
-	def isEqual (self, otherReport):
-		if not otherReport:
-			return False
-		return self.footprint==otherReport.footprint
-		pass
-
-	def toString (self, detail=False):
-		res=self.footprint+':'+self.pattern+'\n'
-		#res+='\n'.join(self.triple)
-		for i in range(0,3):
-			res+='\n'+self.triple[i].toString()
-		#if detail:
-		return res
-		pass
-
-	def printout (self):
-		print '*******************This Triple object is:'
-		print 'rcd1: '
-		printObj(self.rcd1)
-		print 'rcd2: '
-		printObj(self.rcd2)
-		print 'rcd3: '
-		printObj(self.rcd3)
-		pass
-
 class Race:
 
 	#def __init__ (self, pattern, rcd1, rcd2''', chain1, chain2'''):
@@ -117,6 +79,250 @@ class Race:
 			res += item + ' -> '
 		res += '\n'
 		return res
+		pass
+
+class Detector:
+
+	def __init__ (self, parsed_result):
+		self.solver = z3.Solver()
+		self.grid = dict()
+		self.cbs = parsed_result['cbs']
+		self.records = parsed_result['records']
+		self.variables = parsed_result['vars']
+		self.files = parsed_result['files']
+		self.races = list()
+		self.cb_stack = list()
+		#self.filterCbs()
+		pass
+	
+	def filterCbs (self):
+		cbs=self.cbs
+		#print cbs
+		'''
+		for cb in cbs.values():
+			print cb.asyncId
+			printObj(cb)
+		'''
+		#To capture the callback chain for file operations, we cannot remove callbacks that have no records
+		'''
+		for cb in cbs.values():
+			if len(cb.records)>0:
+				continue
+		
+			if cb.prior and cb.prior in cbs and cbs[cb.prior]:
+				#1. remove it in its prior cb 's postCbs
+				for cbList in cbs[cb.prior].postCbs.values():
+					if cb.asyncId in cbList:
+						cbList.remove(cb.asyncId)
+						break
+				#2. remove it in its register in prior cb 's instructions 
+				if cb.register in cbs[cb.prior].instructions:
+					cbs[cb.prior].instructions.remove(cb.register)
+			#3. remove it in cbs
+			del cbs[cb.asyncId]
+		'''
+		#if a callback list in prior.postCbs is empty, remove it
+		for cb in cbs.values():
+			printObj(cb)
+			for priority in cb.postCbs.keys():
+				if len(cb.postCbs[priority])==0:
+					del cb.postCbs[priority]
+		#if the postCbs in its prior is empty, remove it
+		for cb in cbs.values():
+			if not cb.postCbs:
+				del cb.postCbs
+		self.cbs=cbs
+	
+		self.event_num = len(self.cbs)
+		print("^^^^^^^^^SIZE^^^^^^^^^^^:\nEvent number: %s\n" %(self.event_num))
+		pass
+	
+	def addDistinctConstraint (self):
+		self.solver.add(z3.Distinct(self.grid.values()))	
+		pass
+
+	def search_cb_chain (self, eid):
+		self.cb_stack = []
+		seed = eid
+		self.cb_stack.append(seed)
+		while seed != '1':
+			self.cb_stack.append(self.cbs[seed].prior)
+			seed = self.cbs[seed].prior
+		self.cb_stack.reverse()
+		pass
+	
+	def search_and_create_z3_variable (self, lineno):
+		if not lineno in self.grid.keys():
+			self.grid[lineno] = z3.Int('Instruction_for_%s' %(lineno))
+		return self.grid[lineno]
+		pass
+
+	def add_register_cons (self, cb_list):
+		for i in range(len(cb_list) - 1):
+			left = self.search_and_create_z3_variable(self.cbs[cb_list[i]].start)
+			right = self.search_and_create_z3_variable(self.cbs[cb_list[i + 1]].start)
+			self.solver.add(left < right)
+		pass
+
+	def check (self):
+	#@return <boolean> whether there is a solution
+
+		if self.solver.check()!=z3.sat:
+			#print 'Error in z3!'
+			return False
+		else:
+			#print 'ojbk'
+			#de-model
+			'''
+			model=self.solver.model()
+			
+			for instruction in self.grid:
+				print 'instruction_for_%s is: %s' %(instruction, model[self.grid[instruction]])
+			'''
+			return True
+		pass
+
+	def isConcurrent_for_var (self, lineno1, lineno2):
+		#print("before isConcurrent for var: %s" %(self.check()))
+		earlier = lineno1 if lineno1 < lineno2 else lineno2
+		later = lineno2 if lineno1 < lineno2 else lineno1
+		#print("already know %s happens before %s" %(earlier, later))	
+		
+		earlier_z3_var = self.search_and_create_z3_variable(earlier)
+		ear_eid_z3_var = self.search_and_create_z3_variable(self.cbs[self.records[earlier].eid].start)
+		later_z3_var = self.search_and_create_z3_variable(later)
+		lat_eid_z3_var = self.search_and_create_z3_variable(self.cbs[self.records[later].eid].start)
+
+		self.solver.push()
+		self.solver.add(ear_eid_z3_var == earlier_z3_var - 1)
+		self.solver.add(lat_eid_z3_var == later_z3_var - 1)
+		self.solver.add(earlier_z3_var > later_z3_var)
+		self.addDistinctConstraint()
+		res = self.check()
+		#print("solver: %s happens before %s is %s" %(later, earlier, res))
+		self.solver.pop()
+		if res:
+			return True
+		else:
+			return False
+		pass
+
+def printRaces ():
+	global races
+
+	info='*****RACE REPORTS GENERATED BY NODERACER*****\n'
+	info+='Number of races found: %s\n' %(len(races))
+	for i in range(0, len(races)):
+		info+='['+str(i+1)+']'+races[i].toString()+'\n\n' 
+	print info
+	pass
+
+def detect_var_race (parsed_result):
+	print("^^^^^^START DETECT VAR RACE^^^^^^\n")
+
+	variables = parsed_result['vars']
+	global races
+
+	for var in variables:
+		RList = variables[var]['R']
+		WList = variables[var]['W']
+		if len(WList)==0 or len(RList)+len(WList)<2:
+			continue
+		#detect W race with W
+		for i in range(0, len(WList)-1):
+			for j in range(i+1, len(WList)):
+				'''				
+				print("i:")
+				printObj(self.records[WList[i]])
+				print("j:")
+				printObj(self.records[WList[j]])
+				print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))	
+				'''
+				detector = Detector(parsed_result)
+
+				detector.search_cb_chain(detector.records[WList[i]].eid)
+				chainI = detector.cb_stack
+				detector.add_register_cons(chainI)
+
+				detector.search_cb_chain(detector.records[WList[j]].eid)
+				chainJ = detector.cb_stack
+				detector.add_register_cons(chainJ)
+
+				if detector.isConcurrent_for_var(WList[i], WList[j]):
+					race=Race('W_W', detector.records[WList[i]], detector.records[WList[j]])
+					races.append(race)
+
+				del detector
+
+			#detect W race with R
+			for i in range(0, len(WList)):
+				for j in range(0, len(RList)):
+					'''
+					print("i:")
+					printObj(self.records[WList[i]])
+					print("j:")
+					printObj(self.records[RList[j]])
+					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
+					'''
+					detector = Detector(parsed_result)
+
+					detector.search_cb_chain(detector.records[WList[i]].eid)
+					chainI = detector.cb_stack
+					detector.add_register_cons(chainI)
+
+					detector.search_cb_chain(detector.records[RList[j]].eid)
+					chainJ = detector.cb_stack
+					detector.add_register_cons(chainJ)
+
+					if detector.isConcurrent_for_var(WList[i], RList[j]):
+						race=Race('W_R', detector.records[WList[i]], detector.records[RList[j]])
+						races.append(race)
+	pass
+
+races = list()
+
+def start_detect(parsed_result, isRace, isChain):
+	detect_var_race(parsed_result)
+	printRaces()
+	print '*******END DEBUG*******'
+	pass
+
+class Report:
+
+	def __init__ (self, pattern, daRcd1, daRcd2, daRcd3):
+		#daRcd1, daRcd2 are consecutively executed
+
+		self.pattern=pattern
+		self.triple=[daRcd1, daRcd2, daRcd3]
+		self.footprint=self.triple[0].cbLoc+'->'+self.triple[1].cbLoc+'->'+self.triple[2].cbLoc
+		self.equivalent=list()
+		self.ref=daRcd1.ref
+		self.name=daRcd1.name
+		pass
+
+	def isEqual (self, otherReport):
+		if not otherReport:
+			return False
+		return self.footprint==otherReport.footprint
+		pass
+
+	def toString (self, detail=False):
+		res=self.footprint+':'+self.pattern+'\n'
+		#res+='\n'.join(self.triple)
+		for i in range(0,3):
+			res+='\n'+self.triple[i].toString()
+		#if detail:
+		return res
+		pass
+
+	def printout (self):
+		print '*******************This Triple object is:'
+		print 'rcd1: '
+		printObj(self.rcd1)
+		print 'rcd2: '
+		printObj(self.rcd2)
+		print 'rcd3: '
+		printObj(self.rcd3)
 		pass
 
 _fsPattern = {
