@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import os
 import TraceParser
@@ -7,7 +8,7 @@ logger=Logging.logger
 
 rootPath=os.path.dirname(os.path.realpath(__file__))
 z3path=rootPath+'/z3py/bin/python/z3'
-print z3path
+#print z3path
 sys.path.append(z3path)
 
 import __builtin__
@@ -24,8 +25,8 @@ def printDict (dict):
 
 def printObj (obj):
 	'''print object <Object> for debug'''
-	print '========object: ', obj
-	print 'details: ',  obj.__dict__
+	#print '========object: ', obj
+	#print 'details: ',  obj.__dict__
 	#print 'items: 	', ','.join(['%s:%s' % item for item in obj.__dict__.items()])
 	pass
 
@@ -68,7 +69,7 @@ class Race:
 	
 	def chainToString (self):
 	
-		print self.chain1
+		#print self.chain1
 		res = '======chain[1]=====\n'
 		for item in self.chain1:
 			res += item + ' -> '
@@ -152,21 +153,44 @@ class Detector:
 		pass
 	
 	def search_and_create_z3_variable (self, lineno):
+		#global z3_num
 		if not lineno in self.grid.keys():
 			self.grid[lineno] = z3.Int('Instruction_for_%s' %(lineno))
+			#z3_num += 1
+			#print(z3_num, end='\r')
 		return self.grid[lineno]
 		pass
 
 	def add_register_cons (self, cb_list):
+		global call_reg_num 
+		call_reg_num += 1
 		for i in range(len(cb_list) - 1):
 			left = self.search_and_create_z3_variable(self.cbs[cb_list[i]].start)
 			right = self.search_and_create_z3_variable(self.cbs[cb_list[i + 1]].start)
 			self.solver.add(left < right)
+
+		#print('[%s]after register check is: %s' %(call_reg_num, self.check()))
+		pass
+
+	def add_fs_cons (self, lineno):
+		#print("^^^^^^FS CONSTRAINT^^^^^^")
+		consName = 'fsConstraint'
+
+		file_op_z3 = self.search_and_create_z3_variable(lineno)
+		file_eid_z3 = self.search_and_create_z3_variable(self.cbs[self.records[lineno].eid].start)
+
+		if self.records[lineno].isAsync == True:
+			self.solver.add(file_eid_z3 < file_op_z3)
+			file_cb_z3 = self.search_and_create_z3_variable(self.cbs[self.records[lineno].cb].start)
+			self.solver.add(file_op_z3 < file_cb_z3)
+		else:
+			self.solver.add(file_eid_z3 == file_op_z3 - 1)
+		#print("after file constraint: %s" %(self.check()))
 		pass
 
 	def check (self):
 	#@return <boolean> whether there is a solution
-
+		self.addDistinctConstraint()	
 		if self.solver.check()!=z3.sat:
 			#print 'Error in z3!'
 			return False
@@ -196,8 +220,7 @@ class Detector:
 		self.solver.push()
 		self.solver.add(ear_eid_z3_var == earlier_z3_var - 1)
 		self.solver.add(lat_eid_z3_var == later_z3_var - 1)
-		self.solver.add(earlier_z3_var > later_z3_var)
-		self.addDistinctConstraint()
+		self.solver.add(earlier_z3_var > later_z3_var)	
 		res = self.check()
 		#print("solver: %s happens before %s is %s" %(later, earlier, res))
 		self.solver.pop()
@@ -205,6 +228,42 @@ class Detector:
 			return True
 		else:
 			return False
+		pass
+	
+	def isConcurrent (self, lineno1, lineno2):
+		earlier = lineno1 if lineno1 < lineno2 else lineno2
+		later = lineno2 if lineno1 < lineno2 else lineno1
+		#print("already know %s happens before %s" %(earlier, later))	
+		
+		earlier_z3_var = self.search_and_create_z3_variable(earlier)	
+		later_z3_var = self.search_and_create_z3_variable(later)	
+
+		self.solver.push()
+		self.solver.add(earlier_z3_var > later_z3_var)	
+		res = self.check()
+		#print("solver: %s happens before %s is %s" %(later, earlier, res))
+		self.solver.pop()
+		if res:
+			return True
+		else:
+			return False	
+		pass
+
+	def cbHappensBefore (self, cb1, cb2):
+		if cb1 == None or cb2 == None or cb1 == cb2:
+			return False
+		
+		earlier = cb1 if cb1.start < cb2.start else cb2
+		later = cb2 if cb1.start < cb2.start else cb1
+
+		self.solver.push()
+		self.solver.add(self.grid[earlier.start] > self.grid[later.start])
+		res = self.check()
+		self.solver.pop()
+		if res:
+			return False
+		else:
+			return True
 		pass
 
 def printRaces ():
@@ -214,78 +273,177 @@ def printRaces ():
 	info+='Number of races found: %s\n' %(len(races))
 	for i in range(0, len(races)):
 		info+='['+str(i+1)+']'+races[i].toString()+'\n\n' 
-	print info
+	print(info)
 	pass
 
 def detect_var_race (parsed_result):
-	print("^^^^^^START DETECT VAR RACE^^^^^^\n")
-
+	#print("^^^^^^START DETECT VAR RACE^^^^^^\n")
+	count = 0
 	variables = parsed_result['vars']
 	global races
 
 	for var in variables:
 		RList = variables[var]['R']
 		WList = variables[var]['W']
-		if len(WList)==0 or len(RList)+len(WList)<2:
+
+		if var == '4@randomString':
 			continue
+			
+		if len(WList)==0 or len(WList) + len(RList) < 2 or len(RList) +  len(WList) > 20:
+			continue
+
+		print (var)
+		print('RList: %s' %(RList))
+		print('WList: %s\n\n' %(WList))
+		
 		#detect W race with W
 		for i in range(0, len(WList)-1):
 			for j in range(i+1, len(WList)):
-				'''				
-				print("i:")
-				printObj(self.records[WList[i]])
-				print("j:")
-				printObj(self.records[WList[j]])
-				print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))	
-				'''
+				
+				#count += 1
+				#print(count, end='\r')
+				#print("i: %s" %(i))
+				#printObj(self.records[WList[i]])
+				#print("j: %s+\n" %(j))
+				#printObj(self.records[WList[j]])
+				#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))	
+				
+				detector = Detector(parsed_result)
+
+				detector.search_cb_chain(detector.records[WList[i]].eid)
+				chainI = detector.cb_stack
+				detector.add_register_cons(chainI)
+				
+				detector.search_cb_chain(detector.records[WList[j]].eid)
+				chainJ = detector.cb_stack
+				detector.add_register_cons(chainJ)
+					
+				if detector.isConcurrent_for_var(WList[i], WList[j]):
+					race=Race('W_W', detector.records[WList[i]], detector.records[WList[j]])
+					races.append(race)
+
+				del detector
+				
+		'''	
+		#detect W race with R
+		for i in range(0, len(WList)):
+			for j in range(0, len(RList)):
+					
 				detector = Detector(parsed_result)
 
 				detector.search_cb_chain(detector.records[WList[i]].eid)
 				chainI = detector.cb_stack
 				detector.add_register_cons(chainI)
 
-				detector.search_cb_chain(detector.records[WList[j]].eid)
+				detector.search_cb_chain(detector.records[RList[j]].eid)
 				chainJ = detector.cb_stack
 				detector.add_register_cons(chainJ)
 
-				if detector.isConcurrent_for_var(WList[i], WList[j]):
-					race=Race('W_W', detector.records[WList[i]], detector.records[WList[j]])
+				if detector.isConcurrent_for_var(WList[i], RList[j]):
+					race=Race('W_R', detector.records[WList[i]], detector.records[RList[j]])
 					races.append(race)
 
 				del detector
-
-			#detect W race with R
-			for i in range(0, len(WList)):
-				for j in range(0, len(RList)):
-					'''
-					print("i:")
-					printObj(self.records[WList[i]])
-					print("j:")
-					printObj(self.records[RList[j]])
-					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
-					'''
-					detector = Detector(parsed_result)
-
-					detector.search_cb_chain(detector.records[WList[i]].eid)
-					chainI = detector.cb_stack
-					detector.add_register_cons(chainI)
-
-					detector.search_cb_chain(detector.records[RList[j]].eid)
-					chainJ = detector.cb_stack
-					detector.add_register_cons(chainJ)
-
-					if detector.isConcurrent_for_var(WList[i], RList[j]):
-						race=Race('W_R', detector.records[WList[i]], detector.records[RList[j]])
-						races.append(race)
+		'''
 	pass
 
+def matchFileRacePattern (rcd1, rcd2):
+	# @return <Boolean>
+	return rcd2.accessType in _fsPattern[rcd1.accessType]
+	pass
+
+def detect_file_race(parsed_result):
+	global races
+
+	print('=======Detect FS Race======')
+
+	'''
+	for f in parsed_result['files']:
+		print 'file %s' %(f)
+		for i in range(0, len(parsed_result['files'][f])):
+			printObj(parsed_result['records'][parsed_result['files'][f][i]])
+	'''
+	
+	for accessList in parsed_result['files'].values():
+		
+		if len(accessList) < 2:
+			continue
+		#print 'file %s: ' %(f)
+		for i in range(0, len(accessList) - 1):
+			for j in range(i + 1, len(accessList)):
+				'''
+				print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
+				#printObj(accessList[i])
+				print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
+				#printObj(accessList[j])
+				'''
+				
+				detector = Detector(parsed_result)
+				
+				detector.search_cb_chain(detector.records[accessList[i]].eid)
+				chainI = detector.cb_stack
+				detector.add_register_cons(chainI)
+					
+				detector.search_cb_chain(detector.records[accessList[j]].eid)
+				chainJ = detector.cb_stack
+				detector.add_register_cons(chainJ)
+
+				detector.add_fs_cons(accessList[i])
+				detector.add_fs_cons(accessList[j])
+
+				if parsed_result['records'][accessList[i]].isAsync != parsed_result['records'][accessList[j]].isAsync:
+					#print 'THEY HAVE DIFFERENT ASYNC'
+					continue	
+				elif not matchFileRacePattern(parsed_result['records'][accessList[i]], parsed_result['records'][accessList[j]]):
+					#print 'NOT MATCH'
+					continue
+				elif parsed_result['records'][accessList[i]].isAsync == False:
+					if parsed_result['records'][accessList[i]].eid == parsed_result['records'][accessList[j]].eid:
+						continue	
+					elif not detector.isConcurrent(accssList[i], accssList[j]):
+						#print("SYNC AND NOT CONCURRENT")
+						continue
+					else:
+						pattern = parsed_result['records'][accessList[i]].accessType + '_' +parsed_result['records'][accessList[j]].accessType
+						race = Race(pattern, parsed_result['records'][accessList[i]], parsed_result['records'][accessList[j]])
+						races.append(race)
+				elif not detector.isConcurrent(accessList[i], accessList[j]):
+						#print 'NOT CONCURRENT'
+						continue
+				else:
+					pattern = parsed_result['records'][accessList[i]].accessType + '_' +parsed_result['records'][accessList[j]].accessType
+					race = Race(pattern, parsed_result['records'][accessList[i]], parsed_result['records'][accessList[j]])
+					races.append(race)
+				
+				del detector
+pass
+
+_fsPattern = {
+	"C": ["D", "R", "O", "S"],
+	"D": ["C", "R", "W", "O", "X", "S"],
+	"R": ["C", "D", "W"],
+	"W": ["D", "R", "X"],
+	"O": ["C", "D", "X"],
+	"X": ["D", "O", "W"],
+	"S": ["C", "D"] 
+}
+
 races = list()
+#file_races = list()
+call_reg_num = 0
+
 
 def start_detect(parsed_result, isRace, isChain):
 	detect_var_race(parsed_result)
+	#detect_file_race(parsed_result)
 	printRaces()
-	print '*******END DEBUG*******'
+	print ('*******END DEBUG*******')
+	
 	pass
+
+
+
+########################################
 
 class Report:
 
@@ -314,7 +472,7 @@ class Report:
 		#if detail:
 		return res
 		pass
-
+	'''
 	def printout (self):
 		print '*******************This Triple object is:'
 		print 'rcd1: '
@@ -324,17 +482,7 @@ class Report:
 		print 'rcd3: '
 		printObj(self.rcd3)
 		pass
-
-_fsPattern = {
-	"C": ["D", "R", "O", "S"],
-	"D": ["C", "R", "W", "O", "X", "S"],
-	"R": ["C", "D", "W"],
-	"W": ["D", "R", "X"],
-	"O": ["C", "D", "X"],
-	"X": ["D", "O", "W"],
-	"S": ["C", "D"] 
-}
-
+	'''
 class Scheduler:
 
 	def __init__ (self, parsedResult):
@@ -492,11 +640,11 @@ class Scheduler:
 		pass
 	
 	def printConstraint (self, consName, lineno_1, lineno_2):
-		print consName.upper() + ': ' + str(lineno_1) + ' < ' + str(lineno_2)
+		#print consName.upper() + ': ' + str(lineno_1) + ' < ' + str(lineno_2)
 		pass
 
 	def printCbCons (self, consName, cb_1, cb_2):
-		print consName.upper() + ': ' + str(cb_1) + ' < ' + str(cb_2)
+		#print consName.upper() + ': ' + str(cb_1) + ' < ' + str(cb_2)
 		pass
 
 	def addRegisterandResolveConstraint_bak (self):
@@ -700,13 +848,13 @@ class Scheduler:
 		self.solver.add(self.grid[lineno1]<self.grid[lineno2])
 		res=self.check()
 		self.solver.pop()
-		print '1. res is: %s' %(res)
+		#print '1. res is: %s' %(res)
 		if not res:
 			return False
 		self.solver.push()
 		self.solver.add(self.grid[lineno2]<self.grid[lineno1])
 		res=self.check()
-		print '2. res is: %s' %(res)
+		#print '2. res is: %s' %(res)
 		self.solver.pop()
 		if res:
 			return False
@@ -809,14 +957,14 @@ class Scheduler:
 			if len(RList)+len(WList)<3:
 				continue
 			for i in range(0, len(WList)-1):
-				print '*******************current var is: %s' %(var)
+				#print '*******************current var is: %s' %(var)
 				self.solver.push()
 				self.solver.add(self.grid[WList[i]]<self.grid[WList[i+1]])
 				self.solver.push()
 				for j in range(0, len(RList)):
 					self.solver.add(self.grid[WList[i+1]]<self.grid[RList[j]])
 					res=self.check()
-					print '*******************res is: %s' %(res)
+					#print '*******************res is: %s' %(res)
 					if res:
 						triple=Triple(self.records[WList[i]], self.records[RList[j]], self.records[WList[i+1]])
 						self.reports.append(triple)
@@ -831,7 +979,7 @@ class Scheduler:
 			WList=self.variables[var]['W']
 			if len(RList)+len(WList)<3 or len(RList)==0 or len(WList)==0:
 				continue
-			print '*****************current var is: %s' %(var)
+			#print '*****************current var is: %s' %(var)
 			for i in range(0, len(WList)):
 				for j in range(0, len(WList)):
 					if i==j:
@@ -842,13 +990,13 @@ class Scheduler:
 						self.solver.push()
 						self.solver.add(self.grid[WList[j]]<self.grid[RList[k]])
 						res=self.check()
-						print '*****************res is: %s' %(res)
+						#print '*****************res is: %s' %(res)
 						if res:
 							triple=Triple(self.records[WList[i]], self.records[RList[k]], self.records[WList[j]])
 							self.reports.append(triple)
-							print '*****************solver is: %s' %(self.solver)
+							#print '*****************solver is: %s' %(self.solver)
 							triple.printout()
-							print '*************A schedule:\n'
+							#print '*************A schedule:\n'
 							self.printScheduleResult()
 						self.solver.pop()
 					self.solver.pop()
@@ -1051,16 +1199,16 @@ class Scheduler:
 
 	def detectFileRace (self):
 		
-		print '=======Detect FS Race======'
+		#print '=======Detect FS Race======'
 		#print("before detect file: %s" %(self.check()))
-		'''
+		
 		for f in self.files:
-			print 'file %s' %(f)
-			print type(self.files[f])
+			#print 'file %s' %(f)
+			#print type(self.files[f])
 			for i in range(0, len(self.files[f])):
-				print type(self.files[f][i])
+				#print type(self.files[f][i])
 				printObj(self.records[self.files[f][i]])
-		'''
+		
 		for f in self.files:
 			accessList = self.files[f]
 			if len(accessList) < 2:
@@ -1068,12 +1216,12 @@ class Scheduler:
 			#print 'file %s: ' %(f)
 			for i in range(0, len(accessList) - 1):
 				for j in range(i + 1, len(accessList)):
-					'''
-					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
+					
+					#print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
 					#printObj(accessList[i])
-					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
+					#print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
 					#printObj(accessList[j])
-					'''
+					
 					if self.records[accessList[i]].isAsync != self.records[accessList[j]].isAsync:
 						#print 'THEY HAVE DIFFERENT ASYNC'
 						continue	
@@ -1121,8 +1269,8 @@ class Scheduler:
 		
 		print("======Schedule Result======")
 		model=self.solver.model()
-		for instruction in self.grid:
-			print 'instruction_for_%s is: %s' %(instruction, model[self.grid[instruction]])
+		#for instruction in self.grid:
+			#print 'instruction_for_%s is: %s' %(instruction, model[self.grid[instruction]])
 		pass
 
 	def printReports (self):
@@ -1131,7 +1279,7 @@ class Scheduler:
 		info+='Number of AV bugs found: %s\n' %(len(self.reports))
 		for i in range(0, len(self.reports)):
 			info+='['+str(i+1)+'] '+self.reports[i].toString()+'\n\n'
-		print info
+		print (info)
 		pass
 
 	def searchCbChain (self, lineno):
@@ -1176,7 +1324,7 @@ class Scheduler:
 				#print self.races[i]
 				#print self.races[i].chainToString()
 				info += self.races[i].chainToString() + '\n' 
-		print info
+		print (info)
 		pass
 
 def startDebug(parsedResult, isRace, isChain):
@@ -1200,5 +1348,6 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
 	
-	print '*******END DEBUG*******'
+	#print '*******END DEBUG*******'
+	
 	pass
