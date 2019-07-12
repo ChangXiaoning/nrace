@@ -139,6 +139,7 @@ class Scheduler:
 		self.variables=parsedResult['vars']
 		self.files = parsedResult['files']
 		self.reports=list()
+		#self.candidates = list()
 		self.races=list()
 		self.consNumber = 0
 		pass
@@ -355,6 +356,9 @@ class Scheduler:
 				if not hasattr(self.cbs[asynIds[j]], 'start'):
 					continue
 				
+				if not self.isConcurrent_new_1(self.cbs[asynIds[i]].start, self.cbs[asynIds[j]].start):
+					continue
+
 				#same priority && not consider I/O callbacks && not consider setTimeout
 				if self.cbs[asynIds[i]].priority==self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority!=3 and self.cbs[asynIds[i]].priority!=2:
 					#same prior (father)
@@ -370,7 +374,7 @@ class Scheduler:
 							self.solver.add(self.grid[self.cbs[asynIds[i]].start]>self.grid[self.cbs[asynIds[j]].start])
 							self.priority_num += 1
 							#print '2. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
-					'''
+					
 					#different prior (father)
 					#check whether their father have happensBefore relation
 					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[i]].prior], self.cbs[self.cbs[asynIds[j]].prior]):
@@ -381,7 +385,7 @@ class Scheduler:
 						self.solver.add(self.grid[self.cbs[asynIds[j]].start]<self.grid[self.cbs[asynIds[i]].start])
 						self.priority_num += 1
 						#print '4. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
-					'''
+					
 				#different priority and one of them is of priority 1
 				#change: priority 0
 				elif (self.cbs[asynIds[i]].priority!=self.cbs[asynIds[j]].priority and (self.cbs[asynIds[i]].priority=='0' or self.cbs[asynIds[j]].priority=='0')):
@@ -396,13 +400,13 @@ class Scheduler:
 						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
 						self.priority_num += 1
 						#print '5. add a constraint: cb_%s<cb_%s' %(ealier, later)
-					'''
+					
 					#different prior (father)
 					elif self.cbHappensBefore(self.cbs[self.cbs[ealier].prior], self.cbs[self.cbs[later].prior]):
 						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
 						self.priority_num += 1
 						#print '6. add a constraint: cb_%s<cb_%s' %(ealier, later)
-					'''
+					
 		print("Priority number: %s\n" %(self.priority_num))
 		pass
 
@@ -794,8 +798,10 @@ class Scheduler:
 
 					if iEid + '-' + jEid in cache:
 						res = cache[iEid + '-' + jEid]
+						continue
 					elif jEid + '-' + iEid in cache:
 						res = cache[jEid + '-' + iEid]
+						continue
 					else:
 						res = self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start)
 						cache[iEid + '-' + jEid] = res
@@ -836,8 +842,33 @@ class Scheduler:
 						#race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
-
+				
 					#self.solver.pop()
+		pass
+
+	def pass_candidate(self):
+		self.addPriorityConstraint()
+		cache = dict()
+
+		for candidate in self.races:
+			rcd1 = candidate.tuple[0]
+			rcd2 = candidate.tuple[1]
+			res = None
+
+			if rcd1.eid + '-' + rcd2.eid in cache:
+				res = cache[rcd1.eid + '-' + rcd2.eid]
+			elif rcd2.eid + '-' + rcd1.eid in cache:
+				res = cache[rcd2.eid + '-' + rcd1.eid]
+			else:
+				res = self.isConcurrent_new_1(self.cbs[rcd1.eid].start, self.cbs[rcd2.eid].start)
+				cache[rcd1.eid + '-' + rcd2.eid] = res
+
+			candidate.isConcurrent = res
+
+		for i in range(len(self.races) - 1, -1, -1):
+			if self.races[i].isConcurrent == False:
+				self.races.pop(i)
+				
 		pass
 
 	def matchFileRacePattern (self, rcd1, rcd2):
@@ -993,6 +1024,7 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.printReports()	
 	else:
 		scheduler.detectRace()
+		scheduler.pass_candidate()
 		scheduler.addFsConstraint()
 		scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
