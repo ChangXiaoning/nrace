@@ -585,6 +585,7 @@ class Scheduler:
 		#print("already know %s happens before %s" %(earlier, later))
 		self.solver.push()
 		self.solver.add(self.grid[earlier] > self.grid[later])
+		#self.addDistinctConstraint()
 		res = self.check()
 		#print("solver: %s happens before %s is %s" %(later, earlier, res))
 		self.solver.pop()
@@ -741,32 +742,7 @@ class Scheduler:
 			triple.printout()
 		'''
 		pass
-
-	def detectRace_bak (self):
-
-		for var in self.variables:
-			RList=self.variables[var]['R']
-			WList=self.variables[var]['W']
-			if len(WList)==0 or len(RList)+len(WList)<2:
-				continue
-			for i in range(0, len(WList)):
-				#detect W race with W
-				for j in range(0, len(WList)):
-					if j==i or not self.isConcurrent_new_1(WList[i], WList[j]):
-						continue
-
-					race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
-					self.races.append(race)
-				#detect W race with R
-				for j in range(0, len(RList)):
-					#print '~~~~~~~~enter Rlist'
-					#print 'isConcurrent_new_1(WList[%s], RList[%s]) is: %s' %(i, j, self.isConcurrent_new_1(WList[i], RList[j]))
-					if not self.isConcurrent_new_1(WList[i], RList[j]):
-						continue
-					race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
-					self.races.append(race)
-		pass
-
+	
 	def isConcurrent_for_var (self, lineno1, lineno2):
 		#print("before isConcurrent for var: %s" %(self.check()))
 		earlier = lineno1 if lineno1 < lineno2 else lineno2
@@ -789,7 +765,10 @@ class Scheduler:
 
 	def detectRace (self):
 		print("^^^^^^START DETECT RACE^^^^^^\n")
-		print("size: %s" %(len(self.variables)))
+		#print("size: %s" %(len(self.variables)))
+		#cache stores the result of two events, i.e., isConcurrent_new_1(), True denotes concurrent
+		cache = dict()
+
 		for var in self.variables:
 			RList=self.variables[var]['R']
 			WList=self.variables[var]['W']
@@ -808,8 +787,20 @@ class Scheduler:
 					self.solver.push()
 					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
 					self.solver.add(self.grid[self.cbs[self.records[WList[j]].eid].start] == self.grid[WList[j]] - 1)
-					'''
-					if self.isConcurrent_for_var(WList[i], WList[j]):
+					''' 
+					iEid = self.records[WList[i]].eid
+					jEid = self.records[WList[j]].eid
+					res = None
+
+					if iEid + '-' + jEid in cache:
+						res = cache[iEid + '-' + jEid]
+					elif jEid + '-' + iEid in cache:
+						res = cache[jEid + '-' + iEid]
+					else:
+						res = self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start)
+						cache[iEid + '-' + jEid] = res
+
+					if res:
 						#race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
 						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 						self.races.append(race)
@@ -830,7 +821,18 @@ class Scheduler:
 					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
 					self.solver.add(self.grid[self.cbs[self.records[RList[j]].eid].start] == self.grid[RList[j]] - 1)
 					'''
-					if self.isConcurrent_for_var(WList[i], RList[j]):
+					iEid = self.records[WList[i]].eid
+					jEid = self.records[RList[j]].eid
+					res = None
+
+					if iEid + '-' + jEid in cache:
+						res = cache[iEid + '-' + jEid]
+					elif jEid + '-' + iEid in cache:
+						res = cache[jEid + '-' + iEid]
+					else:
+						res = self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start)
+						cache[iEid + '-' + jEid] = res
+					if res:
 						#race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
@@ -895,7 +897,7 @@ class Scheduler:
 
 	def check (self):
 	#@return <boolean> whether there is a solution
-
+		
 		if self.solver.check()!=z3.sat:
 			#print 'Error in z3!'
 			return False
@@ -979,18 +981,19 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.createOrderVariables()
 		
 	scheduler.addDistinctConstraint()
-	'''
+	
 	#scheduler.addProgramAtomicityConstraint()
 	scheduler.addRegisterandResolveConstraint()
-	scheduler.addPriorityConstraint()
-	scheduler.addFsConstraint()
-	'''			
+	#scheduler.addPriorityConstraint()
+	#scheduler.addFsConstraint()
+			
 	if not isRace:
 		scheduler.addPatternConstraint()
 		#scheduler.check()
 		scheduler.printReports()	
 	else:
-		#scheduler.detectRace()
+		scheduler.detectRace()
+		scheduler.addFsConstraint()
 		scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
 	

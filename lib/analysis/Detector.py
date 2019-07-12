@@ -1,6 +1,7 @@
 import TraceParser
 import z3Scheduler
 import z3Detector
+import z3Scheduler
 
 import sys
 import os
@@ -27,7 +28,8 @@ def main():
 	print('size of vars: %s' %(len(parsedResult)))
 	#step 3: detect
 	print '*******BEGIN DEBUG*******'
-	z3Detector.start_detect(parsedResult, isRace, isChain)
+	#z3Detector.start_detect(parsedResult, isRace, isChain)
+	z3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':
