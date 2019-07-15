@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import TraceParser
 import Logging
 
@@ -188,7 +189,7 @@ class Scheduler:
 	def createOrderVariables (self):
 		print('^^^^^^CREATE ORDER VARIABLE^^^^^^')
 		count = 0
-
+		
 		for cb in self.cbs.values():
 			if hasattr(cb, 'start'):
 				self.grid[cb.start]=z3.Int('Instruction_for_%s' %(cb.start))
@@ -215,10 +216,12 @@ class Scheduler:
 		self.order_variable_num = count
 
 		print("Variable number: %s\n" %(self.order_variable_num))
+		print("after create: %s" %(self.check()))
 		pass
 
 	def addDistinctConstraint (self):
 		self.solver.add(z3.Distinct(self.grid.values()))	
+		print("after distinct: %s" %(self.check()))
 		pass
 
 	def addProgramAtomicityConstraint (self):
@@ -310,11 +313,12 @@ class Scheduler:
 		print("^^^^^REGISTER AND RESOLVE^^^^^^")
 		consName = 'Register'
 		self.register_number = 0
+		print("before register: %s" %(self.check()))
 		'''
 		for cb in self.cbs.values():
 			print(cb.asyncId)
 			printObj(cb)
-		'''	
+			
 		for cb in self.cbs.values():
 			if not hasattr(cb, 'start') or not hasattr(cb, 'postCbs'):
 				continue
@@ -325,9 +329,15 @@ class Scheduler:
 						#self.printConstraint(consName, cb.start, self.cbs[postCb].start)
 						self.solver.add(self.grid[cb.start] < self.grid[self.cbs[postCb].start])
 						self.register_number += 1
-		
+		'''
+		for cb in self.cbs.values():
+			#printObj(cb)
+			if not hasattr(cb, 'start') or not hasattr(cb, 'prior') or cb.prior == None or not hasattr(self.cbs[cb.prior], 'start'):
+				continue
+			self.solver.add(self.grid[self.cbs[cb.prior].start] < self.grid[cb.start])
+			self.register_number += 1
 		print("Register number: %s\n" %(self.register_number))
-		#print("after register: %s" %(self.check()))
+		print("after register: %s" %(self.check()))
 
 		pass
 
@@ -339,26 +349,29 @@ class Scheduler:
 		'''
 		print("^^^^^^^PRIORITY^^^^^^")
 		self.priority_num = 0
-
+		
 		asynIds=map(lambda x: int(x), self.cbs.keys())
 		asynIds.sort()	
 		asynIds=map(lambda x: str(x), asynIds)
-	
+		
 		#not consider the glocal script callback
-		for i in range(1, len(asynIds) - 1):
+		for i in range(1, len(asynIds)):
 			
 			if not hasattr(self.cbs[asynIds[i]], 'start'):
 				continue
 
-			for j in range(i+1, len(asynIds)):
+			for j in range(1, len(asynIds)):
 				#print "********asyncId[i] is: %s, asyncId[j] is: %s" %(asynIds[i], asynIds[j])
 				
+				if i == j:
+					continue
+
 				if not hasattr(self.cbs[asynIds[j]], 'start'):
 					continue
 				
-				if not self.isConcurrent_new_1(self.cbs[asynIds[i]].start, self.cbs[asynIds[j]].start):
+				if self.cbHappensBefore(self.cbs[asynIds[i]], self.cbs[asynIds[j]]):
 					continue
-
+				
 				#same priority && not consider I/O callbacks && not consider setTimeout
 				if self.cbs[asynIds[i]].priority==self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority!=3 and self.cbs[asynIds[i]].priority!=2:
 					#same prior (father)
@@ -370,43 +383,39 @@ class Scheduler:
 							self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
 							self.priority_num += 1
 							#print '1. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
+						'''		
 						else:
 							self.solver.add(self.grid[self.cbs[asynIds[i]].start]>self.grid[self.cbs[asynIds[j]].start])
 							self.priority_num += 1
 							#print '2. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
-					
+						'''
 					#different prior (father)
 					#check whether their father have happensBefore relation
 					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[i]].prior], self.cbs[self.cbs[asynIds[j]].prior]):
 						self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
 						self.priority_num += 1
 						#print '3. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
+					'''
 					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[j]].prior], self.cbs[self.cbs[asynIds[i]].prior]):
 						self.solver.add(self.grid[self.cbs[asynIds[j]].start]<self.grid[self.cbs[asynIds[i]].start])
 						self.priority_num += 1
 						#print '4. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
-					
+					'''		
 				#different priority and one of them is of priority 1
 				#change: priority 0
-				elif (self.cbs[asynIds[i]].priority!=self.cbs[asynIds[j]].priority and (self.cbs[asynIds[i]].priority=='0' or self.cbs[asynIds[j]].priority=='0')):
-					if self.cbs[asynIds[i]].priority=='0':
-						ealier=asynIds[i]
-						later=asynIds[j]
-					else:
-						ealier=asynIds[j]
-						later=asynIds[i]
+				elif self.cbs[asynIds[i]].priority!=self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority=='0':	
 					#same prior (father)
-					if self.cbs[ealier].prior==self.cbs[later].prior:
-						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
+					if self.cbs[asynIds[i]].prior==self.cbs[asynIds[j]].prior:
+						self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
 						self.priority_num += 1
 						#print '5. add a constraint: cb_%s<cb_%s' %(ealier, later)
 					
 					#different prior (father)
-					elif self.cbHappensBefore(self.cbs[self.cbs[ealier].prior], self.cbs[self.cbs[later].prior]):
-						self.solver.add(self.grid[self.cbs[ealier].start]<self.grid[self.cbs[later].start])
+					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[i]].prior], self.cbs[self.cbs[asynIds[j]].prior]):
+						self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
 						self.priority_num += 1
 						#print '6. add a constraint: cb_%s<cb_%s' %(ealier, later)
-					
+				
 		print("Priority number: %s\n" %(self.priority_num))
 		pass
 
@@ -417,6 +426,7 @@ class Scheduler:
 	def addFsConstraint (self):
 		#TODO: if refactor, this needs to update
 		print("^^^^^^FS CONSTRAINT^^^^^^")
+		print("Before fs cons: %s" %(self.check()))
 		self.file_constraint_num = 0
 		#print '=====addFSconstraint====='
 		consName = 'fsConstraint'
@@ -771,34 +781,60 @@ class Scheduler:
 		print("^^^^^^START DETECT RACE^^^^^^\n")
 		#print("size: %s" %(len(self.variables)))
 		#cache stores the result of two events, i.e., isConcurrent_new_1(), True denotes concurrent
+		count = 0
 		cache = dict()
 		ignore_key = list()
-		ignore_key.append('')
+		ignore_key.append('self')
+		ignore_key.append('before')
+		ignore_key.append('after')
+		ignore_key.append('fs')
+		ignore_key.append('async')
+		ignore_key.append('random')
+		ignore_key.append('util')
+		ignore_key.append('compareString')
+		#print(ignore_key)
 
 		for var in self.variables:
 			RList=self.variables[var]['R']
 			WList=self.variables[var]['W']
-			if len(WList)==0 or len(RList)+len(WList)<20:
+			if len(WList)==0 or len(RList)+len(WList)<2:
 				continue
 
+			#if the length of WList is 1, it is more likely to inialize the var/function/object first and then read it, we ignore it
+			if len(WList) < 2:
+				continue
+
+			#if the length of variable name is 1, it is more likely a iterator, we ignore it
+			s = var.split('@')	
+			if len(s[1]) < 2:
+				continue
+
+			#ignore before after self etc
+			ignore_flag = False
+			for key in ignore_key:	
+				if re.search(key, var, re.I):	
+					ignore_flag = True
+					break
+			if ignore_flag:
+				continue
+			
+			'''	
 			print (var)
 			print('RList: %s' %(len(RList)))
 			print('WList: %s\n\n' %(len(WList)))
 			'''
+			count += 1
+			
 			#detect W race with W
 			for i in range(0, len(WList)-1):
 				for j in range(i+1, len(WList)):
 									
-					print("i:")
-					printObj(self.records[WList[i]])
-					print("j:")
-					printObj(self.records[WList[j]])
-					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
-					
-					self.solver.push()
-					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
-					self.solver.add(self.grid[self.cbs[self.records[WList[j]].eid].start] == self.grid[WList[j]] - 1)
-					 
+					#print("i:")
+					#printObj(self.records[WList[i]])
+					#print("j:")
+					#printObj(self.records[WList[j]])
+					#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
+						
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[WList[j]].eid
 					res = None
@@ -816,22 +852,16 @@ class Scheduler:
 					if res:
 						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 						self.races.append(race)
-
-					#self.solver.pop()
+	
 			#detect W race with R
 			for i in range(0, len(WList)):
 				for j in range(0, len(RList)):
 					
-					print("i:")
-					printObj(self.records[WList[i]])
-					print("j:")
-					printObj(self.records[RList[j]])
-					print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
-					
-
-					self.solver.push()
-					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
-					self.solver.add(self.grid[self.cbs[self.records[RList[j]].eid].start] == self.grid[RList[j]] - 1)
+					#print("i:")
+					#printObj(self.records[WList[i]])
+					#print("j:")
+					#printObj(self.records[RList[j]])
+					#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
 					
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[RList[j]].eid
@@ -847,27 +877,34 @@ class Scheduler:
 					if res:
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
-				
-					#self.solver.pop()
-		'''
+		
+		print("Detect variable race in %s vars: \n" %(count))			
 		pass
 
 	def pass_candidate(self):
+		if len(self.races) == 0:
+			return
+
 		self.addPriorityConstraint()
 		cache = dict()
 
 		for candidate in self.races:
-			rcd1 = candidate.tuple[0]
+			rcd1 = candidate.tuple[0]	
 			rcd2 = candidate.tuple[1]
 			res = None
-
-			if rcd1.eid + '-' + rcd2.eid in cache:
-				res = cache[rcd1.eid + '-' + rcd2.eid]
-			elif rcd2.eid + '-' + rcd1.eid in cache:
-				res = cache[rcd2.eid + '-' + rcd1.eid]
-			else:
-				res = self.isConcurrent_new_1(self.cbs[rcd1.eid].start, self.cbs[rcd2.eid].start)
-				cache[rcd1.eid + '-' + rcd2.eid] = res
+			
+			if isinstance(rcd1, TraceParser.DataAccessRecord):
+				if rcd1.eid + '-' + rcd2.eid in cache:
+					res = cache[rcd1.eid + '-' + rcd2.eid]
+				elif rcd2.eid + '-' + rcd1.eid in cache:
+					res = cache[rcd2.eid + '-' + rcd1.eid]
+				else:
+					res = self.isConcurrent_new_1(self.cbs[rcd1.eid].start, self.cbs[rcd2.eid].start)
+					cache[rcd1.eid + '-' + rcd2.eid] = res
+			elif isinstance(rcd1, TraceParser.FileAccessRecord) and rcd1.isAsync == False:
+				res = self.cbHappensBefore(self.cbs[rcd1.eid], self.cbs[rcd2.eid])
+			elif isinstance(rcd2, TraceParser.FileAccessRecord) and rcd2.isAsync == True:
+				res = self.isConcurrent_new_1(rcd1.lineno, rcd2.lineno)
 
 			candidate.isConcurrent = res
 
@@ -885,15 +922,16 @@ class Scheduler:
 	def detectFileRace (self):
 		
 		print '=======Detect FS Race======'
-		#print("before detect file: %s" %(self.check()))
-		'''
+		print("before detect file: %s" %(self.check()))
+			
 		for f in self.files:
 			print 'file %s' %(f)
-			print type(self.files[f])
-			for i in range(0, len(self.files[f])):
-				print type(self.files[f][i])
-				printObj(self.records[self.files[f][i]])
-		'''
+			#print type(self.files[f])
+			print(len(self.files[f]))
+			#for i in range(0, len(self.files[f])):
+				#print type(self.files[f][i])
+				#printObj(self.records[self.files[f][i]])
+		
 		for f in self.files:
 			accessList = self.files[f]
 			if len(accessList) < 2:
@@ -901,12 +939,12 @@ class Scheduler:
 			#print 'file %s: ' %(f)
 			for i in range(0, len(accessList) - 1):
 				for j in range(i + 1, len(accessList)):
-					'''
-					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
+					
+					#print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
 					#printObj(accessList[i])
-					print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
+					#print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
 					#printObj(accessList[j])
-					'''
+					
 					if self.records[accessList[i]].isAsync != self.records[accessList[j]].isAsync:
 						#print 'THEY HAVE DIFFERENT ASYNC'
 						continue	
@@ -930,6 +968,7 @@ class Scheduler:
 						pattern = self.records[accessList[i]].accessType + '_' +self.records[accessList[j]].accessType
 						race = Race(pattern, self.records[accessList[i]], self.records[accessList[j]])
 						self.races.append(race)	
+		
 		pass
 
 	def check (self):
@@ -1011,29 +1050,59 @@ class Scheduler:
 				info += self.races[i].chainToString() + '\n' 
 		print info
 		pass
+	
+	def mergeRace (self):
+		self.ids = list()
+
+		for race in self.races:
+			race.isMerged = False
+			_id = race.footprint + ':' + race.pattern
+			if _id in self.ids:
+				#isMerged = true denotes it will be merged later
+				race.isMerged = True
+			else:
+				for saved_id in self.ids:
+					footprint = saved_id.split(":")[0]
+					pattern = saved_id.split(":")[1]
+					cbLoc1 = footprint.split(' vs. ')[0]
+					cbLoc2 = footprint.split(' vs. ')[1]
+					
+					if race.pattern == pattern or race.pattern == pattern[::-1]:
+						if race.footprint == footprint or race.footprint == cbLoc2 + ' vs. ' + cbLoc1:	
+							race.isMerged = True
+							break
+				if race.isMerged == False:
+					self.ids.append(_id)
+
+		for i in range(len(self.races) - 1, -1, -1):
+			if self.races[i].isMerged:
+				#print("MERGE")
+				self.races.pop(i)
+		pass
 
 def startDebug(parsedResult, isRace, isChain):
 	scheduler=Scheduler(parsedResult)
 	scheduler.filterCbs()
 	scheduler.createOrderVariables()
 		
-	scheduler.addDistinctConstraint()
+	#scheduler.addDistinctConstraint()
 	
 	#scheduler.addProgramAtomicityConstraint()
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-			
+		
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		scheduler.detectRace()
+		scheduler.detectRace()	
+		scheduler.addFsConstraint()
+		scheduler.detectFileRace()
+		scheduler.mergeRace()
 		#scheduler.pass_candidate()
-		#scheduler.addFsConstraint()
-		#scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
-	
+			
 	print '*******END DEBUG*******'
 	pass
