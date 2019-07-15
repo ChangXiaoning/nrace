@@ -772,16 +772,23 @@ class Scheduler:
 		#print("size: %s" %(len(self.variables)))
 		#cache stores the result of two events, i.e., isConcurrent_new_1(), True denotes concurrent
 		cache = dict()
+		ignore_key = list()
+		ignore_key.append('')
 
 		for var in self.variables:
 			RList=self.variables[var]['R']
 			WList=self.variables[var]['W']
-			if len(WList)==0 or len(RList)+len(WList)<2:
+			if len(WList)==0 or len(RList)+len(WList)<20:
 				continue
+
+			print (var)
+			print('RList: %s' %(len(RList)))
+			print('WList: %s\n\n' %(len(WList)))
+			'''
 			#detect W race with W
 			for i in range(0, len(WList)-1):
 				for j in range(i+1, len(WList)):
-					'''				
+									
 					print("i:")
 					printObj(self.records[WList[i]])
 					print("j:")
@@ -791,7 +798,7 @@ class Scheduler:
 					self.solver.push()
 					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
 					self.solver.add(self.grid[self.cbs[self.records[WList[j]].eid].start] == self.grid[WList[j]] - 1)
-					''' 
+					 
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[WList[j]].eid
 					res = None
@@ -807,7 +814,6 @@ class Scheduler:
 						cache[iEid + '-' + jEid] = res
 
 					if res:
-						#race=Race('W_W', self.records[WList[i]], self.records[WList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(WList[j])''')
 						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 						self.races.append(race)
 
@@ -815,7 +821,7 @@ class Scheduler:
 			#detect W race with R
 			for i in range(0, len(WList)):
 				for j in range(0, len(RList)):
-					'''
+					
 					print("i:")
 					printObj(self.records[WList[i]])
 					print("j:")
@@ -826,7 +832,7 @@ class Scheduler:
 					self.solver.push()
 					self.solver.add(self.grid[self.cbs[self.records[WList[i]].eid].start] == self.grid[WList[i]] - 1)
 					self.solver.add(self.grid[self.cbs[self.records[RList[j]].eid].start] == self.grid[RList[j]] - 1)
-					'''
+					
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[RList[j]].eid
 					res = None
@@ -839,11 +845,11 @@ class Scheduler:
 						res = self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start)
 						cache[iEid + '-' + jEid] = res
 					if res:
-						#race=Race('W_R', self.records[WList[i]], self.records[RList[j]]''', self.searchCbChain(WList[i]), self.searchCbChain(RList[j])''')
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
 				
 					#self.solver.pop()
+		'''
 		pass
 
 	def pass_candidate(self):
@@ -1020,13 +1026,13 @@ def startDebug(parsedResult, isRace, isChain):
 			
 	if not isRace:
 		scheduler.addPatternConstraint()
-		#scheduler.check()
+		scheduler.check()
 		scheduler.printReports()	
 	else:
 		scheduler.detectRace()
-		scheduler.pass_candidate()
-		scheduler.addFsConstraint()
-		scheduler.detectFileRace()
+		#scheduler.pass_candidate()
+		#scheduler.addFsConstraint()
+		#scheduler.detectFileRace()
 		scheduler.printRaces(isChain)
 	
 	print '*******END DEBUG*******'
