@@ -442,22 +442,22 @@ class Scheduler:
 					j += 1
 			
 			#different priority
-			if not 0 in cb.postCbList:
+			if not 0 in cb.postCbs:
 				continue
-			elif not 1 in cb.postCbList and not 3 in cb.postCbList:
+			elif not 1 in cb.postCbs and not 3 in cb.postCbs:
 				continue
 
-			for earlier in cb.postCbList[0]:
+			for earlier in cb.postCbs[0]:
 				if not hasattr(self.cbs[earlier], 'start'):
 					continue
-				if 1 in cb.postCbList:
-					for later in cb.postCbList[1]:
+				if 1 in cb.postCbs:
+					for later in cb.postCbs[1]:
 						if not hasattr(self.cbs[later], 'start'):
 							continue
 						self.solver.add(self.grid[self.cbs[earlier].start] < self.grid[self.cbs[later].start])
 						self.priority_num += 1
-				if 3 in cb.postCbList:
-					for later in cb.postCbList[3]:
+				if 3 in cb.postCbs:
+					for later in cb.postCbs[3]:
 						if not hasattr(self.cbs[later], 'start'):
 							continue
 						self.solver.add(self.grid[self.cbs[earlier].start] < self.grid[self.cbs[later].start])	
