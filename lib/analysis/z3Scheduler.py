@@ -341,7 +341,7 @@ class Scheduler:
 
 		pass
 
-	def addPriorityConstraint (self):
+	def addPriorityConstraint_bak (self):
 		#TODO: TIMEOUT
 		'''	
 		for cb in self.cbs.values():
@@ -416,6 +416,32 @@ class Scheduler:
 						self.priority_num += 1
 						#print '6. add a constraint: cb_%s<cb_%s' %(ealier, later)
 				
+		print("Priority number: %s\n" %(self.priority_num))
+		pass
+
+	def addPriorityConstraint (self):
+		print("^^^^^^^PRIORITY^^^^^^")
+		self.priority_num = 0
+
+		for cb in self.cbs.values():
+			if not hasattr(cb, 'postCbs'):
+				continue
+			#printObj(cb)
+			
+			for postCbList in cb.postCbs.values():
+				i = 0
+				j = i + 1
+				while j < len(postCbList):
+					if not hasattr(self.cbs[postCbList[i]], 'start') or not hasattr(self.cbs[postCbList[j]], 'start'):
+						i = j
+						j += 1
+						continue
+					self.solver.add(self.cbs[postCbList[i]].start < self.cbs[postCbList[j]].start)
+					self.priority_num += 1
+					i = j
+					j += 1
+			
+		
 		print("Priority number: %s\n" %(self.priority_num))
 		pass
 
@@ -1101,7 +1127,7 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.addFsConstraint()
 		scheduler.detectFileRace()
 		scheduler.mergeRace()
-		#scheduler.pass_candidate()
+		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
 			
 	print '*******END DEBUG*******'
