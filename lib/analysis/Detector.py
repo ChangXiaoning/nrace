@@ -25,6 +25,9 @@ def main():
 	print '*******BEGIN PARSE TRACE FILE*******'
 	parsedResult = TraceParser.processTraceFile(traceFile)
 	#print('after parse:\n')
+	#res = map(lambda x: int(x), parsedResult['cbs'].keys())
+	#res.sort()
+	#print(res)
 	#print('size of vars: %s' %(len(parsedResult)))
 	#step 3: detect
 	print '*******BEGIN DEBUG*******'

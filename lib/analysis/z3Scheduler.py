@@ -870,10 +870,13 @@ class Scheduler:
 			print('RList: %s' %(len(RList)))
 			print('WList: %s\n\n' %(len(WList)))
 			'''
+
 			count += 1
 			
 			#detect W race with W
 			for i in range(0, len(WList)-1):
+				if not self.records[WList[i]].eid in self.cbs:
+					continue
 				for j in range(i+1, len(WList)):
 									
 					#print("i:")
@@ -886,6 +889,10 @@ class Scheduler:
 					jEid = self.records[WList[j]].eid
 					res = None
 
+					#wierd: some eid does not exist in self.cbs, e.g., the cb '0'
+					if not jEid in self.cbs:
+						continue
+
 					if iEid + '-' + jEid in cache:
 						res = cache[iEid + '-' + jEid]
 						continue
@@ -893,6 +900,9 @@ class Scheduler:
 						res = cache[jEid + '-' + iEid]
 						continue
 					else:
+						#print("----------")
+						#print(iEid, jEid)
+						#print(self.cbs.keys())
 						res = self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start)
 						cache[iEid + '-' + jEid] = res
 
@@ -902,6 +912,8 @@ class Scheduler:
 	
 			#detect W race with R
 			for i in range(0, len(WList)):
+				if not self.records[WList[i]].eid in self.cbs:
+					continue
 				for j in range(0, len(RList)):
 					
 					#print("i:")
@@ -913,7 +925,9 @@ class Scheduler:
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[RList[j]].eid
 					res = None
-
+					
+					if not jEid in self.cbs:
+						continue
 					if iEid + '-' + jEid in cache:
 						res = cache[iEid + '-' + jEid]
 					elif jEid + '-' + iEid in cache:
@@ -924,7 +938,7 @@ class Scheduler:
 					if res:
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
-		
+			
 		print("Detect variable race in %s vars: \n" %(count))			
 		pass
 
@@ -970,7 +984,8 @@ class Scheduler:
 		
 		print '=======Detect FS Race======'
 		print("before detect file: %s" %(self.check()))
-			
+		count = 0
+		'''
 		for f in self.files:
 			print 'file %s' %(f)
 			#print type(self.files[f])
@@ -978,12 +993,13 @@ class Scheduler:
 			#for i in range(0, len(self.files[f])):
 				#print type(self.files[f][i])
 				#printObj(self.records[self.files[f][i]])
-		
+		'''
 		for f in self.files:
 			accessList = self.files[f]
 			if len(accessList) < 2:
 				continue
 			#print 'file %s: ' %(f)
+			count += 1
 			for i in range(0, len(accessList) - 1):
 				for j in range(i + 1, len(accessList)):
 					
@@ -1015,7 +1031,8 @@ class Scheduler:
 						pattern = self.records[accessList[i]].accessType + '_' +self.records[accessList[j]].accessType
 						race = Race(pattern, self.records[accessList[i]], self.records[accessList[j]])
 						self.races.append(race)	
-		
+			
+		print("Detect file race in %s files: \n" %(count))	
 		pass
 
 	def check (self):
@@ -1145,8 +1162,8 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.printReports()	
 	else:
 		scheduler.detectRace()	
-		scheduler.addFsConstraint()
-		scheduler.detectFileRace()
+		#scheduler.addFsConstraint()
+		#scheduler.detectFileRace()
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
