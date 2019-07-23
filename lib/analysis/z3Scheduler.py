@@ -436,12 +436,33 @@ class Scheduler:
 						i = j
 						j += 1
 						continue
-					self.solver.add(self.cbs[postCbList[i]].start < self.cbs[postCbList[j]].start)
+					self.solver.add(self.grid[self.cbs[postCbList[i]].start] < self.grid[self.cbs[postCbList[j]].start])
 					self.priority_num += 1
 					i = j
 					j += 1
 			
-		
+			#different priority
+			if not 0 in cb.postCbList:
+				continue
+			elif not 1 in cb.postCbList and not 3 in cb.postCbList:
+				continue
+
+			for earlier in cb.postCbList[0]:
+				if not hasattr(self.cbs[earlier], 'start'):
+					continue
+				if 1 in cb.postCbList:
+					for later in cb.postCbList[1]:
+						if not hasattr(self.cbs[later], 'start'):
+							continue
+						self.solver.add(self.grid[self.cbs[earlier].start] < self.grid[self.cbs[later].start])
+						self.priority_num += 1
+				if 3 in cb.postCbList:
+					for later in cb.postCbList[3]:
+						if not hasattr(self.cbs[later], 'start'):
+							continue
+						self.solver.add(self.grid[self.cbs[earlier].start] < self.grid[self.cbs[later].start])	
+						self.priority_num += 1
+
 		print("Priority number: %s\n" %(self.priority_num))
 		pass
 
