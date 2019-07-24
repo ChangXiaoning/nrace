@@ -941,6 +941,24 @@ class Scheduler:
 			
 		print("Detect variable race in %s vars: \n" %(count))			
 		pass
+	
+	def filter_fp (self):
+		for race in self.races:
+			race.isFilter = False
+			rcd1 = race.tuple[0]
+			rcd2 = race.tuple[1]
+			redeclared = 0
+			if rcd1.isDeclaredLocal:
+				redeclared += 1
+			elif rcd2.isDeclaredLocal:
+				redeclared += 1
+
+			if redeclared > 1:
+				race.isFilter = True
+		
+		for
+		pass
+
 
 	def pass_candidate(self):
 		if len(self.races) == 0:

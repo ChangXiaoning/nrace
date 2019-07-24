@@ -508,6 +508,7 @@ def processLine (line):
 			#2. associate record with its event
 			if cbCtx.top() in cbCtx.cbs:
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
+			#isDeclaredLocal for false positive
 		else:
 			cbCtx.addFileRecord(record)
 			if cbCtx.top() in cbCtx.cbs:
