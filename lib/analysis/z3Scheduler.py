@@ -953,10 +953,12 @@ class Scheduler:
 			elif rcd2.isDeclaredLocal:
 				redeclared += 1
 
-			if redeclared > 1:
+			if redeclared > 0:
 				race.isFilter = True
 		
-		for
+		for i in range(len(self.races) - 1, -1, -1):
+			if self.races[i].isFilter:
+				self.races.pop(i)
 		pass
 
 
@@ -1179,7 +1181,8 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		scheduler.detectRace()	
+		scheduler.detectRace()
+		scheduler.filter_fp()
 		#scheduler.addFsConstraint()
 		#scheduler.detectFileRace()
 		scheduler.mergeRace()

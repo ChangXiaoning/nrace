@@ -324,6 +324,7 @@ class FunStack:
 		self.counts[iid]+=1
 		if not self.vars.has_key(self.getId()):
 			self.vars[self.getId()]={}
+		#print('After enter func %s, vars: %s' %(iid, self.vars))
 		pass
 
 	def exit(self):
@@ -336,15 +337,20 @@ class FunStack:
 		pass
 
 	def declare(self, name):
+		#print("DECLARE %s" %(name))
+		#print(type(name))
 		if not self.vars.has_key(self.getId()):
 			return
-		if type(name)=='str':
-			self.vars[self.getId()][name]=true
+		if type(name)==str:
+			self.vars[self.getId()][name]=True
+		#print('After declare %s, vars: %s' %(name, self.vars))
 		pass
 
 	def isDeclaredLocal(self, name):
 		if not self.vars.has_key(self.getId()):
 			return False
+		#if name == 'client':
+			#print("Get isDeclaredLocal of var %s: %s" %(name, self.vars[self.getId()].has_key(name)))
 		return self.vars[self.getId()].has_key(name)
 		pass
 	

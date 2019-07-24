@@ -10,6 +10,7 @@ lineno = -1
 sourceMap = dict()
 currentSourceFile = None
 cbCtx = TraceParser.CbStack()
+print_obj = TraceParser.print_obj
 
 def main():
 	traceFile = sys.argv[1]
@@ -24,6 +25,12 @@ def main():
 	#step 1: parse record into object
 	print '*******BEGIN PARSE TRACE FILE*******'
 	parsedResult = TraceParser.processTraceFile(traceFile)
+	'''		
+	print(parsedResult)
+	for rcd in parsedResult['records'].values():
+		if isinstance(rcd, TraceParser.DataAccessRecord):
+			print(print_obj(rcd, ['lineno', 'entryType', 'accessType', 'ref', 'name', 'eid', 'iid', 'location', 'isDeclaredLocal']))
+	'''
 	#print('after parse:\n')
 	#res = map(lambda x: int(x), parsedResult['cbs'].keys())
 	#res.sort()
@@ -32,7 +39,7 @@ def main():
 	#step 3: detect
 	print '*******BEGIN DEBUG*******'
 	#z3Detector.start_detect(parsedResult, isRace, isChain)
-	z3Scheduler.startDebug(parsedResult, isRace, isChain)
+	#z3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':
