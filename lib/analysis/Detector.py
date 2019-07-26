@@ -39,7 +39,7 @@ def main():
 	#step 3: detect
 	print '*******BEGIN DEBUG*******'
 	#z3Detector.start_detect(parsedResult, isRace, isChain)
-	#z3Scheduler.startDebug(parsedResult, isRace, isChain)
+	z3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':

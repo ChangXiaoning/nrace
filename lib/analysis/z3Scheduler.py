@@ -865,11 +865,11 @@ class Scheduler:
 			if ignore_flag:
 				continue
 			
-			'''	
+				
 			print (var)
 			print('RList: %s' %(len(RList)))
 			print('WList: %s\n\n' %(len(WList)))
-			'''
+			
 
 			count += 1
 			
@@ -1188,6 +1188,6 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
-			
+		
 	print '*******END DEBUG*******'
 	pass
