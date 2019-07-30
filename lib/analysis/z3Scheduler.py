@@ -877,6 +877,8 @@ class Scheduler:
 			for i in range(0, len(WList)-1):
 				if not self.records[WList[i]].eid in self.cbs:
 					continue
+				if not hasattr(self.cbs[self.records[WList[i]].eid], 'start'):
+					continue
 				for j in range(i+1, len(WList)):
 									
 					#print("i:")
@@ -891,6 +893,8 @@ class Scheduler:
 
 					#wierd: some eid does not exist in self.cbs, e.g., the cb '0'
 					if not jEid in self.cbs:
+						continue
+					if not hasattr(self.cbs[self.records[WList[j]].eid], 'start'):
 						continue
 
 					if iEid + '-' + jEid in cache:
@@ -914,6 +918,8 @@ class Scheduler:
 			for i in range(0, len(WList)):
 				if not self.records[WList[i]].eid in self.cbs:
 					continue
+				if not hasattr(self.cbs[self.records[WList[i]].eid], 'start'):
+					continue
 				for j in range(0, len(RList)):
 					
 					#print("i:")
@@ -927,6 +933,8 @@ class Scheduler:
 					res = None
 					
 					if not jEid in self.cbs:
+						continue
+					if not hasattr(self.cbs[self.records[RList[j]].eid], 'start'):
 						continue
 					if iEid + '-' + jEid in cache:
 						res = cache[iEid + '-' + jEid]
@@ -1175,7 +1183,7 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-		
+			
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
