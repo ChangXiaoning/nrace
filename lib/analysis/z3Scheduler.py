@@ -1013,7 +1013,7 @@ class Scheduler:
 		print '=======Detect FS Race======'
 		print("before detect file: %s" %(self.check()))
 		count = 0
-		'''
+		'''	
 		for f in self.files:
 			print 'file %s' %(f)
 			#print type(self.files[f])
@@ -1191,11 +1191,11 @@ def startDebug(parsedResult, isRace, isChain):
 	else:
 		scheduler.detectRace()
 		scheduler.filter_fp()
-		#scheduler.addFsConstraint()
-		#scheduler.detectFileRace()
+		scheduler.addFsConstraint()
+		scheduler.detectFileRace()
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
-		
+	
 	print '*******END DEBUG*******'
 	pass
