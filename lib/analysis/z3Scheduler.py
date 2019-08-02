@@ -1183,16 +1183,16 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-					
+				
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		#scheduler.detectRace()
-		#scheduler.filter_fp()
-		scheduler.addFsConstraint()
-		scheduler.detectFileRace()
+		scheduler.detectRace()
+		scheduler.filter_fp()
+		#scheduler.addFsConstraint()
+		#scheduler.detectFileRace()
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
