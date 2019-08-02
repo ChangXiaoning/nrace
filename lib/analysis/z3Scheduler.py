@@ -332,7 +332,7 @@ class Scheduler:
 		'''
 		for cb in self.cbs.values():
 			#printObj(cb)
-			if not hasattr(cb, 'start') or not hasattr(cb, 'prior') or cb.prior == None or not hasattr(self.cbs[cb.prior], 'start'):
+			if not hasattr(cb, 'start') or not hasattr(cb, 'prior') or cb.prior == None or cb.prior not in self.cbs or not hasattr(self.cbs[cb.prior], 'start'):
 				continue
 			self.solver.add(self.grid[self.cbs[cb.prior].start] < self.grid[cb.start])
 			self.register_number += 1
@@ -870,7 +870,7 @@ class Scheduler:
 			print('RList: %s' %(len(RList)))
 			print('WList: %s\n\n' %(len(WList)))
 			
-
+			
 			count += 1
 			
 			#detect W race with W
@@ -1183,19 +1183,19 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-			
+					
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		scheduler.detectRace()
-		scheduler.filter_fp()
+		#scheduler.detectRace()
+		#scheduler.filter_fp()
 		scheduler.addFsConstraint()
 		scheduler.detectFileRace()
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
-	
+		
 	print '*******END DEBUG*******'
 	pass
