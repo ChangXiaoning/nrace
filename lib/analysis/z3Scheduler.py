@@ -840,6 +840,8 @@ class Scheduler:
 		ignore_key.append('util')
 		ignore_key.append('compareString')
 		#print(ignore_key)
+		#length = 150
+		#bottom = 135
 
 		for var in self.variables:
 			RList=self.variables[var]['R']
@@ -870,11 +872,16 @@ class Scheduler:
 			print('RList: %s' %(len(RList)))
 			print('WList: %s\n\n' %(len(WList)))
 			
-			
+				
 			count += 1
-			
+			'''
+			if count < bottom:
+				continue
+			if count > length:
+				continue
+			'''
 			#detect W race with W
-			for i in range(0, len(WList)-1):
+			for i in range(0, len(WList) - 1):
 				if not self.records[WList[i]].eid in self.cbs:
 					continue
 				if not hasattr(self.cbs[self.records[WList[i]].eid], 'start'):
@@ -913,7 +920,7 @@ class Scheduler:
 					if res:
 						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 						self.races.append(race)
-	
+			
 			#detect W race with R
 			for i in range(0, len(WList)):
 				if not self.records[WList[i]].eid in self.cbs:
@@ -1189,13 +1196,13 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		scheduler.detectRace()
+		#scheduler.detectRace()
 		scheduler.filter_fp()
-		#scheduler.addFsConstraint()
+		scheduler.addFsConstraint()
 		#scheduler.detectFileRace()
-		scheduler.mergeRace()
-		scheduler.pass_candidate()
+		#scheduler.mergeRace()
+		#scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
-		
+			
 	print '*******END DEBUG*******'
 	pass

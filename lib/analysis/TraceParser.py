@@ -332,6 +332,8 @@ class FunStack:
 		pass
 
 	def getId(self):
+		if len(self.stack) == 0:
+			return
 		topFunc=self.top()
 		return topFunc+'-'+str(self.counts[topFunc])
 		pass
