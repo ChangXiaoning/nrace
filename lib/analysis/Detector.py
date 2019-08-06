@@ -27,10 +27,14 @@ def main():
 	parsedResult = TraceParser.processTraceFile(traceFile)
 	'''		
 	print(parsedResult)
-	for rcd in parsedResult['records'].values():
-		if isinstance(rcd, TraceParser.DataAccessRecord):
-			print(print_obj(rcd, ['lineno', 'entryType', 'accessType', 'ref', 'name', 'eid', 'iid', 'location', 'isDeclaredLocal']))
+	for rcd in parsedResult['files'].values():
+		if isinstance(rcd, TraceParser.FileAccessRecord):
+			print(print_obj(rcd, ['lineno', 'entryType', 'accessType', 'resource', 'ref', 'name', 'eid', 'location', 'isAsync']))
 	'''
+	for fileName in parsedResult['files']:
+		print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
+	print(parsedResult['files'])
+	
 	#print('after parse:\n')
 	#res = map(lambda x: int(x), parsedResult['cbs'].keys())
 	#res.sort()

@@ -839,9 +839,10 @@ class Scheduler:
 		ignore_key.append('random')
 		ignore_key.append('util')
 		ignore_key.append('compareString')
+		ignore_key.append('ropts')
 		#print(ignore_key)
-		#length = 150
-		#bottom = 135
+		#length = 138
+		#bottom = 120
 
 		for var in self.variables:
 			RList=self.variables[var]['R']
@@ -874,7 +875,7 @@ class Scheduler:
 			
 				
 			count += 1
-			'''
+			'''	
 			if count < bottom:
 				continue
 			if count > length:
@@ -1020,7 +1021,7 @@ class Scheduler:
 		print '=======Detect FS Race======'
 		print("before detect file: %s" %(self.check()))
 		count = 0
-		'''	
+		'''
 		for f in self.files:
 			print 'file %s' %(f)
 			#print type(self.files[f])
@@ -1190,15 +1191,15 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-				
+			
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		#scheduler.detectRace()
-		scheduler.filter_fp()
-		scheduler.addFsConstraint()
+		scheduler.detectRace()
+		#scheduler.filter_fp()
+		#scheduler.addFsConstraint()
 		#scheduler.detectFileRace()
 		#scheduler.mergeRace()
 		#scheduler.pass_candidate()
