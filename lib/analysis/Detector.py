@@ -33,7 +33,7 @@ def main():
 	'''
 	for fileName in parsedResult['files']:
 		print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
-	print(parsedResult['files'])
+	#print(parsedResult['files'])
 	
 	#print('after parse:\n')
 	#res = map(lambda x: int(x), parsedResult['cbs'].keys())

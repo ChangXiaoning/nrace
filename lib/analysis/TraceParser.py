@@ -7,6 +7,7 @@ import time
 import z3Scheduler
 import Logging
 import json
+import re
 
 logger=Logging.logger
 
@@ -57,6 +58,7 @@ LogEntryType={
 	"FS_DELETE": 44,
 	"FS_CREATE": 45,
 	"FS_STAT": 46,
+	"INVOKE_FUN": 47,
 	0:"DECLARE",
 	1:"WRITE",
 	2:"PUTFIELD",
@@ -77,7 +79,8 @@ LogEntryType={
 	43: "FS_CLOSE",
 	44: "FS_DELETE",
 	45: "FS_CREATE",
-	46: "FS_STAT"
+	46: "FS_STAT",
+	47: "INVOKE_FUN"
 }
 
 VarAccessType = {
@@ -199,6 +202,7 @@ class Callback:
 		else:
 			return True
 		pass
+
 class CbStack:
 
 	def __init__ (self):
@@ -410,6 +414,77 @@ class StartandEndRecord:
 		pass
 '''
 
+_identifier = {
+	"read[s|S]tream": {
+		"read": "FS_READ",
+		"close": "FS_CLOSE"
+	}
+}
+
+class Helper:
+	
+	def	__init__ (self):
+		self.stack = list()
+		self.location_map = dict()
+		self.latestTargetFile = None
+		pass
+
+	def createStream (self, source):
+		#print("Find a create Stream\n")
+		self.latestTargetFile = source
+		pass
+	
+	def getResource (self):
+		return self.latestTargetFile
+		pass
+	
+	def isEnter (self, name):
+		if len(self.stack) == 0:
+			for key in _identifier.keys():
+				if re.search(key, name):
+					return True
+		elif len(self.stack) == 1:
+			first = self.stack[0]
+			#print(self.stack)
+			#print(first)
+			#print(_identifier)
+			for key in _identifier:
+				if re.search(key, first):
+					stop = key
+					break
+			if name in _identifier[stop]:
+				return True
+		return False
+		pass
+
+	def enter (self, fName):
+		self.stack.append(fName)
+		print("Enter %s" %(self.stack))
+		#if len(self.stack) == 2:
+			#self.identify_fs_operation()
+		pass
+	
+	def isCheck (self):
+		return len(self.stack) == 2
+		pass
+
+	def identify_fs_operation (self):
+		for key in _identifier:
+			if re.search(key, self.stack[0]):
+				stop_1 = key
+				break
+		for key in _identifier[stop_1]:
+			if self.stack[1] == key:
+				find = True
+				break
+		if find:
+			accessType = _identifier[stop_1][self.stack[1]]
+		else:
+			accessType = 'unknown'
+		self.stack = list()
+		return accessType	
+		pass
+
 def processLine (line):
 
 	#@param line <str>: each line in the trace file
@@ -420,17 +495,21 @@ def processLine (line):
 	global funCtx
 	global cbCtx
 	#global records
+	global helper
+	global waitingResource
 
 	lineno+=1
 	record=None
+	
 	if line:
 		
 		#print lineno
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
-
-		#print(lineno)
-		#print('======line is: %s' %(line))
+		
+		if lineno == 831:
+			print(lineno)
+			print('======line is: %s' %(line))
 	
 		item=line.split(",")
 		itemEntryType=item[0]
@@ -440,7 +519,27 @@ def processLine (line):
 			return
 		itemEntryTypeName=LogEntryType[itemEntryType]
 		if VarAccessType.has_key(itemEntryTypeName):
-			record=DataAccessRecord(lineno, itemEntryTypeName, VarAccessType[itemEntryTypeName], item[2], item[3], cbCtx.top(), item[1])	
+			record=DataAccessRecord(lineno, itemEntryTypeName, VarAccessType[itemEntryTypeName], item[2], item[3], cbCtx.top(), item[1])
+			#check if there is a file operation
+			if VarAccessType[itemEntryTypeName] == 'R': 
+				if waitingResource:
+					helper.createStream(item[3])
+					#print("Get waitingResource: lineno %s" %(lineno))
+					waitingResource = False
+				elif item[3] == 'createReadStream' or item[3] == 'createWriteStream':
+					#print("Set waitingResource: lineno %s" %(lineno))
+					waitingResource = True
+				elif helper.isEnter(item[3]):
+					helper.enter(item[3])
+					if helper.isCheck():
+						accessType = helper.identify_fs_operation()
+						resource = helper.getResource()
+						#print("Retrive resource: %s" %(resource))
+						conj = "#"
+						location = conj.join(sourceMap[item[1]])
+					#it seems no matter if we lose this DataAccessRecord
+						record = FileAccessRecord(lineno, accessType, FileAccessType[accessType], resource, item[2], item[3], cbCtx.top(), location, True)
+						record.cb = None
 		elif FileAccessType.has_key(itemEntryTypeName):	
 			if item[6] == '1':
 				isAsync = True
@@ -595,4 +694,7 @@ currentSourceFile=None
 funCtx=FunStack()
 cbCtx=CbStack()
 #records=dict()
+helper = Helper()
+waitingResource = None
+
 
