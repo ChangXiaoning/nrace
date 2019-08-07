@@ -1057,7 +1057,7 @@ class Scheduler:
 					elif self.records[accessList[i]].isAsync == False:
 						if self.records[accessList[i]].eid == self.records[accessList[j]].eid:
 							continue
-						elif not self.cbHappensBefore(self.cbs[self.records[accssList[i]].eid], self.cbs[self.records[accssList[j]].eid]):
+						elif not self.cbHappensBefore(self.cbs[self.records[accessList[i]].eid], self.cbs[self.records[accessList[j]].eid]):
 							#print("SYNC AND NOT CONCURRENT")
 							continue
 						else:

@@ -418,9 +418,19 @@ _identifier = {
 	"read[s|S]tream": {
 		"read": "FS_READ",
 		"close": "FS_CLOSE"
-	#},
-	#"fs":{
-		#"write"
+	},
+	"fs":{
+		"write|append|truncate": "FS_WRITE",
+		"unlink|rmdir": "FS_DELETE",
+		"read": "FS_READ",
+		"access|exists|stat": "FS_STAT",
+		#"copy"
+		#"link"
+		#"rename"
+		"open": "FS_OPEN",
+		"close": "FS_CLOSE",
+		"mkdir": "FS_CREATE",
+		"end": "FS_CLOSE"
 	}
 }
 
@@ -435,6 +445,10 @@ class Helper:
 	def createStream (self, source):
 		#print("Find a create Stream\n")
 		self.latestTargetFile = source
+		pass
+
+	def saveIntoMap (self, streamHandler):
+		self.location_map[streamHandler] = self.latestTargetFile
 		pass
 	
 	def getResource (self):
@@ -465,7 +479,7 @@ class Helper:
 
 	def enter (self, fName):
 		self.stack.append(fName)
-		print("Enter %s" %(self.stack))
+		#print("Enter %s" %(self.stack))
 		#if len(self.stack) == 2:
 			#self.identify_fs_operation()
 		pass
@@ -507,6 +521,12 @@ def processLine (line):
 	#global records
 	global helper
 	global waitingResource
+	global underSetStream
+	global _fs
+	global _fileName
+	global fAccessType
+	global lastManualFile
+	global lastfunName
 
 	lineno+=1
 	record=None
@@ -517,9 +537,8 @@ def processLine (line):
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
 		
-		if lineno == 831:
-			print(lineno)
-			print('======line is: %s' %(line))
+		#print(lineno)
+		#print('======line is: %s' %(line))
 	
 		item=line.split(",")
 		itemEntryType=item[0]
@@ -531,11 +550,15 @@ def processLine (line):
 		if VarAccessType.has_key(itemEntryTypeName):
 			record=DataAccessRecord(lineno, itemEntryTypeName, VarAccessType[itemEntryTypeName], item[2], item[3], cbCtx.top(), item[1])
 			#check if there is a file operation
+
+
 			if VarAccessType[itemEntryTypeName] == 'R': 
+				'''
 				if waitingResource:
 					helper.createStream(item[3])
 					#print("Get waitingResource: lineno %s" %(lineno))
 					waitingResource = False
+					underSetStream = True
 				elif item[3] == 'createReadStream' or item[3] == 'createWriteStream':
 					#print("Set waitingResource: lineno %s" %(lineno))
 					waitingResource = True
@@ -547,21 +570,65 @@ def processLine (line):
 						#print("Retrive resource: %s" %(resource))
 						conj = "#"
 						location = conj.join(sourceMap[item[1]])
-					#it seems no matter if we lose this DataAccessRecord
+						#it seems no matter if we lose this DataAccessRecord
 						record = FileAccessRecord(lineno, accessType, FileAccessType[accessType], resource, item[2], item[3], cbCtx.top(), location, True)
+						#print("1. Find resource %s" %(resource))
 						record.cb = None
+				'''
+				if item[3] == 'fs' or item[3] == '_fs2':
+					_fs = True
+				elif _fs:
+					for key in _identifier["fs"]:
+						if re.search(key, item[3], re.I):
+							fAccessType = _identifier["fs"][key]
+							break
+					if fAccessType:
+						_fileName = True
+					_fs = False
+					lastfunName = item[3]
+					#print("name: %s" %(item[3]))
+				elif _fileName:
+					fileName = item[3]
+					conj = "#"
+					location = conj.join(sourceMap[item[1]])
+					isAsync = re.search("sync", lastfunName, re.I)
+					if isAsync != None:
+						isAsync = False
+					else:
+						isAsync = True
+					#if fAccessType == 'FS_READ':
+						#print("Find type : %s, resource: %s %s %s" %(lastfunName, fileName, isAsync, lineno))
+					#print("Resource %s" %(fileName))
+					record = FileAccessRecord(lineno, fAccessType, FileAccessType[fAccessType], fileName, item[2], lastfunName, cbCtx.top(), location, isAsync)
+					#print("2. Find resource %s" %(fileName))
+					if isAsync == False:
+						record.cb = None
+					else:
+						lastManualFile = lineno
+					_fileName = None
+			else:
+				if underSetStream and re.search("[read|write]stream", item[3], re.I):
+					#associate source with its stream
+					helper.saveIntoMap(item[3])
+					underSetStream = False
+
+
 		elif FileAccessType.has_key(itemEntryTypeName):	
 			if item[6] == '1':
 				isAsync = True
 			else:
 				isAsync = False
 			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], isAsync)
+			#print("3. Find resource %s" %(item[1]))
 			if record.isAsync == True:
 				#associate asynchronous file operation with its callback
 				record.cb = cbCtx.getNewestCb()	
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
+			if lastManualFile:
+				cbCtx.records[lastManualFile].cb = item[1]
+				lastManualFile = None
 		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:	
 			cbCtx.enter(item[1], lineno)	
 		elif itemEntryType==LogEntryType["ASYNC_AFTER"]:
@@ -706,5 +773,9 @@ cbCtx=CbStack()
 #records=dict()
 helper = Helper()
 waitingResource = None
-
-
+underSetStream = None
+_fs = None
+_fileName = None
+fAccessType = None
+lastManualFile = None
+lastfunName = None
