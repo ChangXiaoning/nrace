@@ -543,7 +543,7 @@ def processTraceFile (traceFile):
 	'''
 	#TODO: add python stdout 
 	#print "======Begin to parse the trace file %s" %(traceFile)
-	
+	'''
 	with open(traceFile) as f:
 		line=f.readline()
 		while line:
@@ -563,7 +563,7 @@ def processTraceFile (traceFile):
 			while line:
 				processLine(line.strip())
 				line = f.readline()
-	'''
+	
 	
 	result=dict()	
 	result['cbs']=cbCtx.cbs

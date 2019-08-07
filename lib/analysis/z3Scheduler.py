@@ -480,12 +480,16 @@ class Scheduler:
 		for rcd in self.records.values():
 			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
 				#constraint 1: asynchronous file operation happens after the callback that launches it
-				self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
-				self.file_constraint_num += 1
+				#print("key cb: %s" %(self.cbs.keys()))
+				#print("eid: %s\n" %(rcd.eid))
+				if rcd.eid in self.cbs and hasattr(self.cbs[rcd.eid], 'start'):
+					self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
+					self.file_constraint_num += 1
 				#self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
 				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
-				self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
-				self.file_constraint_num += 1
+				if hasattr(self.cbs[rcd.cb], 'start'):
+					self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
+					self.file_constraint_num += 1
 				#self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
 
 		#print("after file constraint: %s" %(self.check()))
@@ -1197,12 +1201,12 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		scheduler.detectRace()
+		#scheduler.detectRace()
 		#scheduler.filter_fp()
-		#scheduler.addFsConstraint()
-		#scheduler.detectFileRace()
-		#scheduler.mergeRace()
-		#scheduler.pass_candidate()
+		scheduler.addFsConstraint()
+		scheduler.detectFileRace()
+		scheduler.mergeRace()
+		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
 			
 	print '*******END DEBUG*******'
