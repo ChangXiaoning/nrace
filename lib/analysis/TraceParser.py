@@ -418,6 +418,9 @@ _identifier = {
 	"read[s|S]tream": {
 		"read": "FS_READ",
 		"close": "FS_CLOSE"
+	#},
+	#"fs":{
+		#"write"
 	}
 }
 
@@ -452,8 +455,11 @@ class Helper:
 				if re.search(key, first):
 					stop = key
 					break
-			if name in _identifier[stop]:
-				return True
+			for key in _identifier[stop]:
+				if re.search(key, name):
+					return True
+			#if name in _identifier[stop]:
+				#return True
 		return False
 		pass
 
@@ -469,16 +475,20 @@ class Helper:
 		pass
 
 	def identify_fs_operation (self):
+		find = None
+		stop_1 = None
+		stop_2 = None
 		for key in _identifier:
 			if re.search(key, self.stack[0]):
 				stop_1 = key
 				break
 		for key in _identifier[stop_1]:
-			if self.stack[1] == key:
+			if re.search(key, self.stack[1]):
 				find = True
+				stop_2 = key
 				break
 		if find:
-			accessType = _identifier[stop_1][self.stack[1]]
+			accessType = _identifier[stop_1][stop_2]
 		else:
 			accessType = 'unknown'
 		self.stack = list()
