@@ -601,6 +601,8 @@ def processLine (line):
 					#print("Resource %s" %(fileName))
 					record = FileAccessRecord(lineno, fAccessType, FileAccessType[fAccessType], fileName, item[2], lastfunName, cbCtx.top(), location, isAsync)
 					#print("2. Find resource %s" %(fileName))
+					if lineno == 14570:
+						print(print_obj(record, ['name', 'resource', 'isAsync']))
 					if isAsync == False:
 						record.cb = None
 					else:

@@ -482,6 +482,7 @@ class Scheduler:
 				#constraint 1: asynchronous file operation happens after the callback that launches it
 				#print("key cb: %s" %(self.cbs.keys()))
 				#print("eid: %s\n" %(rcd.eid))
+				#print(rcd.lineno)
 				if rcd.eid in self.cbs and hasattr(self.cbs[rcd.eid], 'start'):
 					self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
 					self.file_constraint_num += 1
