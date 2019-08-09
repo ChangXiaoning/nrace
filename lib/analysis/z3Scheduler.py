@@ -488,7 +488,7 @@ class Scheduler:
 					self.file_constraint_num += 1
 				#self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
 				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
-				if rcd.cb != None and hasattr(self.cbs[rcd.cb], 'start'):
+				if hasattr(rcd, 'cb') and rcd.cb != None and hasattr(self.cbs[rcd.cb], 'start'):
 					self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
 					self.file_constraint_num += 1
 				#self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
@@ -846,8 +846,10 @@ class Scheduler:
 		ignore_key.append('compareString')
 		ignore_key.append('ropts')
 		#print(ignore_key)
-		#length = 138
-		#bottom = 120
+		#length = 30
+		#bottom = 0
+
+		fp_var_list = list()
 
 		for var in self.variables:
 			RList=self.variables[var]['R']
@@ -874,9 +876,9 @@ class Scheduler:
 				continue
 			
 				
-			print (var)
-			print('RList: %s' %(len(RList)))
-			print('WList: %s\n\n' %(len(WList)))
+			#print (var)
+			#print('RList: %s' %(len(RList)))
+			#print('WList: %s\n\n' %(len(WList)))
 			
 				
 			count += 1
@@ -941,6 +943,10 @@ class Scheduler:
 					#printObj(self.records[RList[j]])
 					#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
 					
+					if self.records[WList[i]].isDeclaredLocal or self.records[RList[j]].isDeclaredLocal:
+						if var not in fp_var_list:
+							fp_var_list.append(var)
+					
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[RList[j]].eid
 					res = None
@@ -960,10 +966,11 @@ class Scheduler:
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
 			
-		print("Detect variable race in %s vars: \n" %(count))			
+		print("Detect variable race in %s vars: \n" %(count - len(fp_var_list)))			
 		pass
 	
 	def filter_fp (self):
+		self.fp = 0
 		for race in self.races:
 			race.isFilter = False
 			rcd1 = race.tuple[0]
@@ -976,10 +983,13 @@ class Scheduler:
 
 			if redeclared > 0:
 				race.isFilter = True
+				#self.fp += 1
 		
 		for i in range(len(self.races) - 1, -1, -1):
 			if self.races[i].isFilter:
 				self.races.pop(i)
+		#print("++++++Complete filter local variables+++++++")
+		#print("%s couple of FP" %(self.fp))
 		pass
 
 
@@ -1196,19 +1206,19 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-			
+				
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		#scheduler.detectRace()
-		#scheduler.filter_fp()
-		scheduler.addFsConstraint()
-		scheduler.detectFileRace()
+		scheduler.detectRace()
+		scheduler.filter_fp()
+		#scheduler.addFsConstraint()
+		#scheduler.detectFileRace()
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
-			
+				
 	print '*******END DEBUG*******'
 	pass

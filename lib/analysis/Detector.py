@@ -31,9 +31,9 @@ def main():
 		if isinstance(rcd, TraceParser.FileAccessRecord):
 			print(print_obj(rcd, ['lineno', 'entryType', 'accessType', 'resource', 'ref', 'name', 'eid', 'location', 'isAsync']))
 	'''
-	for fileName in parsedResult['files']:
-		print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
-	#print(parsedResult['files'])
+	#for fileName in parsedResult['vars']:
+		#print("%s\n"  %(fileName))
+	#print(parsedResult['vars'])
 	
 	#print('after parse:\n')
 	#res = map(lambda x: int(x), parsedResult['cbs'].keys())

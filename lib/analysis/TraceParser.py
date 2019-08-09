@@ -332,6 +332,7 @@ class FunStack:
 		pass
 
 	def exit(self):
+		#if len(self.stack) > 0:
 		self.stack.pop()	
 		pass
 
@@ -417,7 +418,13 @@ class StartandEndRecord:
 _identifier = {
 	"read[s|S]tream": {
 		"read": "FS_READ",
-		"close": "FS_CLOSE"
+		"close": "FS_CLOSE",
+		"end": "FS_CLOSE"
+	},
+	"write[w|W]tream":{
+		"write": "FS_WRITE",
+		"close": "FS_CLOSE",
+		"end": "FS_CLOSE"
 	},
 	"fs":{
 		"write|append|truncate": "FS_WRITE",
@@ -553,7 +560,7 @@ def processLine (line):
 
 
 			if VarAccessType[itemEntryTypeName] == 'R': 
-				'''
+				'''			
 				if waitingResource:
 					helper.createStream(item[3])
 					#print("Get waitingResource: lineno %s" %(lineno))
@@ -574,7 +581,7 @@ def processLine (line):
 						record = FileAccessRecord(lineno, accessType, FileAccessType[accessType], resource, item[2], item[3], cbCtx.top(), location, True)
 						#print("1. Find resource %s" %(resource))
 						record.cb = None
-				'''
+							
 				if item[3] == 'fs' or item[3] == '_fs2':
 					_fs = True
 				elif _fs:
@@ -601,8 +608,8 @@ def processLine (line):
 					#print("Resource %s" %(fileName))
 					record = FileAccessRecord(lineno, fAccessType, FileAccessType[fAccessType], fileName, item[2], lastfunName, cbCtx.top(), location, isAsync)
 					#print("2. Find resource %s" %(fileName))
-					if lineno == 14570:
-						print(print_obj(record, ['name', 'resource', 'isAsync']))
+					#if lineno == 14570:
+						#print(print_obj(record, ['name', 'resource', 'isAsync']))
 					if isAsync == False:
 						record.cb = None
 					else:
@@ -614,7 +621,7 @@ def processLine (line):
 					helper.saveIntoMap(item[3])
 					underSetStream = False
 
-
+			'''
 		elif FileAccessType.has_key(itemEntryTypeName):	
 			if item[6] == '1':
 				isAsync = True
@@ -632,6 +639,8 @@ def processLine (line):
 				cbCtx.records[lastManualFile].cb = item[1]
 				lastManualFile = None
 		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:	
+			#if lineno == 5783:
+				#print("OK")
 			cbCtx.enter(item[1], lineno)	
 		elif itemEntryType==LogEntryType["ASYNC_AFTER"]:
 			cbCtx.exit(item[1], lineno)	
@@ -681,8 +690,12 @@ def processLine (line):
 		#etp/TODO	
 		if record.eid == '0':
 			env = None
-		else:
+		#wierd: some cb starts even if no registration or triggering
+		elif record.eid in cbCtx.cbs:
+			#print(cbCtx.cbs.keys())
 			env=cbCtx.cbs[record.eid]	
+		else:
+			env = None
 		record.etp=env.resourceType if env else None
 		#cbLoc
 		cbLoc = env.getCbLoc() if env != None else None
@@ -721,7 +734,7 @@ def processTraceFile (traceFile):
 	'''
 	#TODO: add python stdout 
 	#print "======Begin to parse the trace file %s" %(traceFile)
-	'''
+	
 	with open(traceFile) as f:
 		line=f.readline()
 		while line:
@@ -741,7 +754,7 @@ def processTraceFile (traceFile):
 			while line:
 				processLine(line.strip())
 				line = f.readline()
-	
+	'''
 	
 	result=dict()	
 	result['cbs']=cbCtx.cbs
