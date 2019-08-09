@@ -143,6 +143,14 @@ class Scheduler:
 		#self.candidates = list()
 		self.races=list()
 		self.consNumber = 0
+		#for the matrix(m*n)
+		#case matrix[i][j] = 0: event i is concurrent with event j
+		#case matrix[i][j] = 1: event i happens before event j
+		#case matrix[i][j] = -1: event i happens after event j
+		self.matrix = None
+		asynIds=map(lambda x: int(x), self.cbs.keys())	
+		m = n  = max(asynIds) + 1
+		self.matrix = [[None for i in range(0, m)] for j in range(n)]
 		pass
 
 	def filterCbs (self):
@@ -308,6 +316,28 @@ class Scheduler:
 				#self.printConstraint(consName, cb.register, cb.start)
 				self.printCbCons(consName, cb.prior, cb.asyncId)
 		pass
+	
+	def save_in_matrix (self, num_1, num_2, result):
+		num_1 = int(num_1)
+		num_2 = int(num_2)
+		#num_1 is concurrent with num_2
+		if result == 0:
+			self.matrix[num_1][num_2] = 0
+			self.matrix[num_2][num_1] = 0
+		#num_1 happens before num_2
+		elif result == 1:
+			self.matrix[num_1][num_2] = 1
+			self.matrix[num_2][num_1] = -1
+		elif result == -1:
+			self.matrix[num_1][num_2] = -1
+			self.matrix[num_2][num_1] = 1
+		pass
+
+	def get_from_matrix (self, num_1, num_2):
+		num_1 = int(num_1)
+		num_2 = int(num_2)
+		return self.matrix[num_1][num_2]
+		pass
 
 	def addRegisterandResolveConstraint (self):
 		print("^^^^^REGISTER AND RESOLVE^^^^^^")
@@ -335,6 +365,7 @@ class Scheduler:
 			if not hasattr(cb, 'start') or not hasattr(cb, 'prior') or cb.prior == None or cb.prior not in self.cbs or not hasattr(self.cbs[cb.prior], 'start'):
 				continue
 			self.solver.add(self.grid[self.cbs[cb.prior].start] < self.grid[cb.start])
+			self.save_in_matrix(cb.prior, cb.asyncId, 1)	
 			self.register_number += 1
 		print("Register number: %s\n" %(self.register_number))
 		print("after register: %s" %(self.check()))
@@ -465,6 +496,8 @@ class Scheduler:
 
 		print("Priority number: %s\n" %(self.priority_num))
 		pass
+
+	
 
 	def addsetTimeoutPriority (self):
 		#TODO
@@ -912,6 +945,16 @@ class Scheduler:
 					if not hasattr(self.cbs[self.records[WList[j]].eid], 'start'):
 						continue
 
+					if self.get_from_matrix(iEid, jEid) == 0:
+						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
+						self.races.append(race)
+					elif self.get_from_matrix(iEid, jEid) == 1 or self.get_from_matrix(iEid, jEid) == -1:
+						continue
+					elif self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start):
+						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
+						self.races.append(race)
+						self.save_in_matrix(iEid, jEid, 0)
+					'''
 					if iEid + '-' + jEid in cache:
 						res = cache[iEid + '-' + jEid]
 						continue
@@ -928,7 +971,7 @@ class Scheduler:
 					if res:
 						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 						self.races.append(race)
-			
+					'''
 			#detect W race with R
 			for i in range(0, len(WList)):
 				if not self.records[WList[i]].eid in self.cbs:
@@ -950,7 +993,17 @@ class Scheduler:
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[RList[j]].eid
 					res = None
-					
+				
+					if self.get_from_matrix(iEid, jEid) == 0:
+						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
+						self.races.append(race)
+					elif self.get_from_matrix(iEid, jEid) == 1 or self.get_from_matrix(iEid, jEid) == -1:
+						continue
+					elif self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start):
+						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
+						self.races.append(race)
+						self.save_in_matrix(iEid, jEid, 0)
+					'''
 					if not jEid in self.cbs:
 						continue
 					if not hasattr(self.cbs[self.records[RList[j]].eid], 'start'):
@@ -965,7 +1018,7 @@ class Scheduler:
 					if res:
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
-			
+					'''
 		print("Detect variable race in %s vars: \n" %(count - len(fp_var_list)))			
 		pass
 	
