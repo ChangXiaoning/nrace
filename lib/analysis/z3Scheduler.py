@@ -1206,7 +1206,7 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-				
+	'''			
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
@@ -1219,6 +1219,6 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
-				
+	'''			
 	print '*******END DEBUG*******'
 	pass
