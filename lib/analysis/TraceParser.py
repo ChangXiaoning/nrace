@@ -560,7 +560,7 @@ def processLine (line):
 
 
 			if VarAccessType[itemEntryTypeName] == 'R': 
-				'''			
+					
 				if waitingResource:
 					helper.createStream(item[3])
 					#print("Get waitingResource: lineno %s" %(lineno))
@@ -621,7 +621,7 @@ def processLine (line):
 					helper.saveIntoMap(item[3])
 					underSetStream = False
 
-			'''
+			
 		elif FileAccessType.has_key(itemEntryTypeName):	
 			if item[6] == '1':
 				isAsync = True

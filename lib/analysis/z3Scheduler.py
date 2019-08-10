@@ -469,6 +469,7 @@ class Scheduler:
 						continue
 					self.solver.add(self.grid[self.cbs[postCbList[i]].start] < self.grid[self.cbs[postCbList[j]].start])
 					self.priority_num += 1
+					self.save_in_matrix(postCbList[i], postCbList[j], 1)
 					i = j
 					j += 1
 			
@@ -486,18 +487,97 @@ class Scheduler:
 						if not hasattr(self.cbs[later], 'start'):
 							continue
 						self.solver.add(self.grid[self.cbs[earlier].start] < self.grid[self.cbs[later].start])
+						self.save_in_matrix(earlier, later, 1)
 						self.priority_num += 1
 				if 3 in cb.postCbs:
 					for later in cb.postCbs[3]:
 						if not hasattr(self.cbs[later], 'start'):
 							continue
 						self.solver.add(self.grid[self.cbs[earlier].start] < self.grid[self.cbs[later].start])	
+						self.save_in_matrix(earlier, later, 1)
 						self.priority_num += 1
 
 		print("Priority number: %s\n" %(self.priority_num))
 		pass
 
-	
+	def diff_prior_same_priority (self):
+		self.diff_prior_same_priority = 0
+
+		asynIds=map(lambda x: int(x), self.cbs.keys())
+		asynIds.sort()	
+		asynIds=map(lambda x: str(x), asynIds)
+
+		for cbi in asynIds:
+			if not hasattr(self.cbs[cbi], 'priority'):
+				continue
+			if self.cbs[cbi].priority == 3:
+				continue
+			if not hasattr(self.cbs[cbi], 'prior'):
+				continue
+			if not hasattr(self.cbs[cbi], 'start'):
+				continue
+			for cbj in asynIds:
+				if cbi == cbj:
+					continue
+				if self.cbs[cbj].priority != self.cbs[cbi].priority:
+					continue
+				if not hasattr(self.cbs[cbj], 'prior'):
+					continue
+				if not hasattr(self.cbs[cbj], 'start'):
+					continue
+				current = self.get_from_matrix(cbi, cbj)
+				if current == 1 or current == -1:
+					continue
+				res = self.get_from_matrix(self.cbs[cbi].prior, self.cbs[cbj].prior)
+				if res == 1:
+					self.solver.add(self.grid[self.cbs[cbi].start] < self.grid[self.cbs[cbj].start])
+					self.save_in_matrix(cbi, cbj, 1)
+					self.diff_prior_same_priority += 1
+				elif res == -1:
+					self.solver.add(self.grid[self.cbs[cbi].start] > self.grid[self.cbs[cbj].start])
+					self.save_in_matrix(cbi, cbj, -1)
+					self.diff_prior_same_priority += 1
+
+		print("Diff prior same priority: %s\n" %(self.diff_prior_same_priority))
+		pass
+
+	def diff_prior_diff_priority (self):
+		self.diff2_num = 0
+
+		asynIds=map(lambda x: int(x), self.cbs.keys())
+		asynIds.sort()	
+		asynIds=map(lambda x: str(x), asynIds)
+		
+		for cbi in asynIds:
+			if not hasattr(self.cbs[cbi], 'priority'):
+				continue
+			if self.cbs[cbi].priority != 0:
+				continue
+			if not hasattr(self.cbs[cbi], 'prior'):
+				continue
+			if not hasattr(self.cbs[cbi], 'start'):
+				continue
+			for cbj in asynIds:
+				if cbi == cbj:
+					continue
+				if self.cbs[cbj].priority == self.cbs[cbi].priority:
+					continue	
+				if not hasattr(self.cbs[cbj], 'start'):
+					continue
+				current = self.get_from_matrix(cbi, cbj)
+				if current == 1 or current == -1:
+					continue
+				res = self.get_from_matrix(self.cbs[cbi].prior, cbj)
+				if res == 1:
+					self.solver.add(self.grid[self.cbs[cbi].start] < self.grid[self.cbs[cbj].start])
+					self.save_in_matrix(cbi, cbj, 1)
+					self.diff2_num += 1
+				elif res == -1:
+					self.solver.add(self.grid[self.cbs[cbi].start] > self.grid[self.cbs[cbj].start])
+					self.save_in_matrix(cbi, cbj, -1)
+					self.diff2_num += 1
+		print("diff2 priority: %s" %(self.diff2_num))
+		pass
 
 	def addsetTimeoutPriority (self):
 		#TODO
@@ -879,8 +959,8 @@ class Scheduler:
 		ignore_key.append('compareString')
 		ignore_key.append('ropts')
 		#print(ignore_key)
-		#length = 30
-		#bottom = 0
+		length = 1
+		bottom = 0
 
 		fp_var_list = list()
 
@@ -909,9 +989,9 @@ class Scheduler:
 				continue
 			
 				
-			#print (var)
-			#print('RList: %s' %(len(RList)))
-			#print('WList: %s\n\n' %(len(WList)))
+			print (var)
+			print('RList: %s' %(len(RList)))
+			print('WList: %s\n\n' %(len(WList)))
 			
 				
 			count += 1
@@ -920,7 +1000,7 @@ class Scheduler:
 				continue
 			if count > length:
 				continue
-			'''
+			'''	
 			#detect W race with W
 			for i in range(0, len(WList) - 1):
 				if not self.records[WList[i]].eid in self.cbs:
@@ -950,11 +1030,13 @@ class Scheduler:
 						self.races.append(race)
 					elif self.get_from_matrix(iEid, jEid) == 1 or self.get_from_matrix(iEid, jEid) == -1:
 						continue
+					
 					elif self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start):
 						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 						self.races.append(race)
 						self.save_in_matrix(iEid, jEid, 0)
-					'''
+					
+					'''		
 					if iEid + '-' + jEid in cache:
 						res = cache[iEid + '-' + jEid]
 						continue
@@ -967,11 +1049,11 @@ class Scheduler:
 						#print(self.cbs.keys())
 						res = self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start)
 						cache[iEid + '-' + jEid] = res
-
+					
 					if res:
 						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
 						self.races.append(race)
-					'''
+				'''
 			#detect W race with R
 			for i in range(0, len(WList)):
 				if not self.records[WList[i]].eid in self.cbs:
@@ -989,25 +1071,29 @@ class Scheduler:
 					if self.records[WList[i]].isDeclaredLocal or self.records[RList[j]].isDeclaredLocal:
 						if var not in fp_var_list:
 							fp_var_list.append(var)
+							continue
 					
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[RList[j]].eid
 					res = None
-				
+					
+					if not jEid in self.cbs:
+						continue
+					if not hasattr(self.cbs[self.records[RList[j]].eid], 'start'):
+						continue
+					
 					if self.get_from_matrix(iEid, jEid) == 0:
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
 					elif self.get_from_matrix(iEid, jEid) == 1 or self.get_from_matrix(iEid, jEid) == -1:
 						continue
+					
 					elif self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start):
 						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
 						self.save_in_matrix(iEid, jEid, 0)
+						
 					'''
-					if not jEid in self.cbs:
-						continue
-					if not hasattr(self.cbs[self.records[RList[j]].eid], 'start'):
-						continue
 					if iEid + '-' + jEid in cache:
 						res = cache[iEid + '-' + jEid]
 					elif jEid + '-' + iEid in cache:
@@ -1051,13 +1137,19 @@ class Scheduler:
 			return
 
 		self.addPriorityConstraint()
+		self.diff_prior_same_priority()
+		self.diff_prior_diff_priority()
+
 		cache = dict()
+		asynIds=map(lambda x: int(x), self.cbs.keys())	
+		m = n  = max(asynIds) + 1
+		pass_matrix = [[None for i in range(0, m)] for j in range(n)]
 
 		for candidate in self.races:
 			rcd1 = candidate.tuple[0]	
 			rcd2 = candidate.tuple[1]
 			res = None
-			
+			'''
 			if isinstance(rcd1, TraceParser.DataAccessRecord):
 				if rcd1.eid + '-' + rcd2.eid in cache:
 					res = cache[rcd1.eid + '-' + rcd2.eid]
@@ -1070,8 +1162,23 @@ class Scheduler:
 				res = self.cbHappensBefore(self.cbs[rcd1.eid], self.cbs[rcd2.eid])
 			elif isinstance(rcd2, TraceParser.FileAccessRecord) and rcd2.isAsync == True:
 				res = self.isConcurrent_new_1(rcd1.lineno, rcd2.lineno)
+			'''
 
-			candidate.isConcurrent = res
+			if isinstance(rcd1, TraceParser.DataAccessRecord) or isinstance(rcd1, TraceParser.FileAccessRecord) and rcd1.isAsync == False:
+				current = self.get_from_matrix(rcd1.eid, rcd2.eid)
+				if current == 1 or current == -1:
+					candidate.isConcurrent = False
+				elif pass_matrix[int(rcd1.eid)][int(rcd2.eid)] == 0:
+					candidate.isConcurrent = True
+				else:
+					res = self.isConcurrent_new_1(self.cbs[rcd1.eid].start, self.cbs[rcd2.eid].start)
+					candidate.isConcurrent = res
+					if res == True:
+						pass_matrix[int(rcd1.eid)][int(rcd2.eid)] = 0	
+			
+			elif isinstance(rcd2, TraceParser.FileAccessRecord) and rcd2.isAsync == True:
+				res = self.isConcurrent_new_1(rcd1.lineno, rcd2.lineno)
+				candidate.isConcurrent = res
 
 		for i in range(len(self.races) - 1, -1, -1):
 			if self.races[i].isConcurrent == False:
@@ -1233,7 +1340,11 @@ class Scheduler:
 					footprint = saved_id.split(":")[0]
 					pattern = saved_id.split(":")[1]
 					cbLoc1 = footprint.split(' vs. ')[0]
-					cbLoc2 = footprint.split(' vs. ')[1]
+					#print(footprint.split(' vs. '))
+					if len(footprint.split(' vs. ')) < 2:
+						cbLoc2 = None
+					else:
+						cbLoc2 = footprint.split(' vs. ')[1]
 					
 					if race.pattern == pattern or race.pattern == pattern[::-1]:
 						if race.footprint == footprint or race.footprint == cbLoc2 + ' vs. ' + cbLoc1:	
@@ -1259,7 +1370,7 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-	'''			
+				
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
@@ -1272,6 +1383,6 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
-	'''			
+				
 	print '*******END DEBUG*******'
 	pass
