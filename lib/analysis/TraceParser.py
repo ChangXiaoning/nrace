@@ -122,7 +122,12 @@ def isFsRace (rcd1, rcd2):
 	pass
 
 ResourcePriority={
-
+	#FSEVENTWRAP, FSREQCALLBACK, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPINCOMINGMESSAGE,
+	#HTTPCLIENTREQUEST, JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP,
+	#SHUTDOWNWRAP, SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPSERVERWRAP, TCPWRAP,
+	#TTYWRAP, UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
+	#RANDOMBYTESREQUEST, TLSWRAP, Microtask, Timeout, Immediate, TickObject
+	
 	#corresponding to the paper <sementics of asynchronous javascript>
 	#TODO: promise
 	'TickObject':0,
@@ -139,6 +144,15 @@ def getPriority(resourceType):
 		return ResourcePriority['Other']
 	pass
 
+class Reg_or_Resolve_Op:
+
+	def __init__ (self, prior, follower, resourceType, lineno):
+		self.prior = prior
+		self.follower = follower
+		self.resourceType = resourceType
+		self.lineno = lineno
+		pass
+
 class Callback:
 
 	def __init__ (self, asyncId, prior, resourceType, hbType, lineno):
@@ -148,6 +162,7 @@ class Callback:
 		self.priority=getPriority(resourceType)
 		self.hbType=hbType
 		self.register=lineno
+		#save DataAccessRecord/FileAccessRecord/Reg_or_Resolve_Op into self.records
 		self.records=list()
 		self.postCbs=dict()
 		#store the lineno of start, data accesses, registers, end
@@ -166,6 +181,9 @@ class Callback:
 
 	def addRecord (self, rcd):	
 		self.records.append(rcd.lineno)
+		#because we use addRecord() to save Reg_or_Resolve instance, so it can have no attribute 'location'
+		if isinstance(rcd, Reg_or_Resolve_Op):
+			return
 		if len(self.records)==1:
 			self.location=rcd.location
 		#self.addInstruction(rcd.lineno)
@@ -217,6 +235,12 @@ class CbStack:
 		self.files = dict()
 		#save callback in initialized order
 		self.cbForFile = list()
+		#save all register and resolve instances
+		self.rrdict = dict()
+		pass
+	
+	def save_register_resolve (self, rr):
+		self.rrdict[rr.lineno] = rr
 		pass
 
 	def top (self):
@@ -534,9 +558,12 @@ def processLine (line):
 	global fAccessType
 	global lastManualFile
 	global lastfunName
+	#global lastRegister
 
 	lineno+=1
 	record=None
+	register = None
+	resolve = None
 	
 	if line:
 		
@@ -558,9 +585,9 @@ def processLine (line):
 			record=DataAccessRecord(lineno, itemEntryTypeName, VarAccessType[itemEntryTypeName], item[2], item[3], cbCtx.top(), item[1])
 			#check if there is a file operation
 
-
+			'''
 			if VarAccessType[itemEntryTypeName] == 'R': 
-					
+						
 				if waitingResource:
 					helper.createStream(item[3])
 					#print("Get waitingResource: lineno %s" %(lineno))
@@ -620,7 +647,7 @@ def processLine (line):
 					#associate source with its stream
 					helper.saveIntoMap(item[3])
 					underSetStream = False
-
+			'''
 			
 		elif FileAccessType.has_key(itemEntryTypeName):	
 			if item[6] == '1':
@@ -628,16 +655,36 @@ def processLine (line):
 			else:
 				isAsync = False
 			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], isAsync)
+			
 			#print("3. Find resource %s" %(item[1]))
 			if record.isAsync == True:
 				#associate asynchronous file operation with its callback
-				record.cb = cbCtx.getNewestCb()	
+				record.cb = cbCtx.getNewestCb()
+			
+				#associate the generated Reg_or_Resolve_Op instance with the file operation
+				associatedCb = record.cb
+				record.register = Reg_or_Resolve_Op(associatedCb.prior, associated.asyncId, associated.resourceType, lineno)
+				record.resolve = Reg_or_Resolve_Op(associatedCb.prior, associated.asyncId, associated.resourceType, lineno + 'rr') 
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
+			'''
 			if lastManualFile:
 				cbCtx.records[lastManualFile].cb = item[1]
 				lastManualFile = None
+			'''
+			#generate Reg_or_Resolve_Op instance
+			register = Reg_or_Resolve_Op(item[3], item[1], item[2], lineno)
+			if item[2] == 'TickObject' or item[2] == 'Immediate' or item[2] == 'Timeout':
+				resolve = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'rr')
+				#print(cbCtx.cbs)
+				#print(cbCtx.stack)
+				cbCtx.cbs[item[3]].addRecord(register)
+				cbCtx.cbs[item[3]].addRecord(resolve)
+				register = None
+				resolve = None
+			#else:
+				#lastRegister = register
 		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:	
 			#if lineno == 5783:
 				#print("OK")
@@ -709,9 +756,13 @@ def processLine (line):
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
 			#isDeclaredLocal for false positive
 		else:
-			cbCtx.addFileRecord(record)
+			cbCtx.addFileRecord(record)	
 			if cbCtx.top() in cbCtx.cbs:
+				if hasattr(record, 'register'):
+					cbCtx.cbs[cbCtx.top()].addRecord(record.reigster)
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
+				if hasattr(record, 'resolve'):
+					cbCtx.cbs[cbCtx.top()].addRecord(record.resolve)
 	pass
 
 def searchFile (directory, filePrefix):
@@ -794,3 +845,5 @@ _fileName = None
 fAccessType = None
 lastManualFile = None
 lastfunName = None
+#in order to associate  manually generated register and resolve operation with their async file operation
+#lastRegister = None
