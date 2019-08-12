@@ -675,14 +675,14 @@ def processLine (line):
 			'''
 			#generate Reg_or_Resolve_Op instance
 			register = Reg_or_Resolve_Op(item[3], item[1], item[2], lineno)
-			if item[2] == 'TickObject' or item[2] == 'Immediate' or item[2] == 'Timeout':
-				resolve = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'rr')
-				#print(cbCtx.cbs)
-				#print(cbCtx.stack)
-				cbCtx.cbs[item[3]].addRecord(register)
-				cbCtx.cbs[item[3]].addRecord(resolve)
-				register = None
-				resolve = None
+			#if item[2] == 'TickObject' or item[2] == 'Immediate' or item[2] == 'Timeout':
+			resolve = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'rr')
+			#print(cbCtx.cbs)
+			#print(cbCtx.stack)
+			cbCtx.cbs[item[3]].addRecord(register)
+			cbCtx.cbs[item[3]].addRecord(resolve)
+			register = None
+			resolve = None
 			#else:
 				#lastRegister = register
 		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:	
