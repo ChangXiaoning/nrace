@@ -681,6 +681,8 @@ def processLine (line):
 			#print(cbCtx.stack)
 			cbCtx.cbs[item[3]].addRecord(register)
 			cbCtx.cbs[item[3]].addRecord(resolve)
+			cbCtx.save_register_resolve(register)
+			cbCtx.save_register_resolve(resolve)
 			register = None
 			resolve = None
 			#else:
@@ -760,9 +762,11 @@ def processLine (line):
 			if cbCtx.top() in cbCtx.cbs:
 				if hasattr(record, 'register'):
 					cbCtx.cbs[cbCtx.top()].addRecord(record.reigster)
+					cbCtx.save_register_resolve(record.register)
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
 				if hasattr(record, 'resolve'):
 					cbCtx.cbs[cbCtx.top()].addRecord(record.resolve)
+					cbCtx.save_register_resolve(record.resolve)
 	pass
 
 def searchFile (directory, filePrefix):
