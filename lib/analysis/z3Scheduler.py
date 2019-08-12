@@ -219,7 +219,7 @@ class Scheduler:
 		for rcdLineno in self.records:
 			self.grid[rcdLineno] = z3.Int('Instruction_for_%s' %(rcdLineno))
 			count += 1
-			self.solver.add(self.grid[rcdLineno] > 0)
+			#self.solver.add(self.grid[rcdLineno] > 0)
 		
 		self.order_variable_num = count
 
@@ -230,6 +230,44 @@ class Scheduler:
 	def addDistinctConstraint (self):
 		self.solver.add(z3.Distinct(self.grid.values()))	
 		print("after distinct: %s" %(self.check()))
+		pass
+	
+	def rm_sync_access_op (self):
+		'''
+		for rcd in self.records.values():
+			print("[%s]: var: %s, file: %s" (rcd.lineno, isinstance(rcd, TraceParser.DataAccessRecord), isinstance(rcd, TraceParser.FileAccessRecord)))
+		'''
+		for cb in self.cbs.values():
+			if len(cb.records) == 0:
+				continue
+			print('--------Before remove sync rcdList is:')
+			print(cb.records)
+			rcdList = cb.records
+			sync_op = [x for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == True]
+			sync_op_index = [rcdList.index(x) for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == True]
+			print("1. sync_op: %s" %(sync_op))
+			print("1. sync_op_index: %s" %(sync_op_index))
+			
+			for i in range(0, len(sync_op_index) - 1):
+				#print("i: %s" %(i))
+				if sync_op_index[i] == sync_op_index[i + 1] - 1:
+					continue
+				else:
+					del sync_op[i]
+			
+			if len(sync_op) > 0:
+				if isinstance(self.records[sync_op[-1]], TraceParser.DataAccessRecord) or isinstance(self.records[sync_op[-1]], TraceParser.FileAccessRecord) and self.records[sync_op[-1]].isAsync == True:
+					sync_op.pop()
+			
+			print("2. sync_op: %s" %(sync_op))
+			for i in range(len(rcdList) - 1, -1, -1):
+				if rcdList[i] in sync_op:
+					rcdList.pop(i)
+
+			cb.records = rcdList
+			print('--------After remove sync rcdList is:')
+			print(cb.records)
+			print('\n')
 		pass
 
 	def addProgramAtomicityConstraint (self):
@@ -1362,10 +1400,12 @@ class Scheduler:
 def startDebug(parsedResult, isRace, isChain):
 	scheduler=Scheduler(parsedResult)
 	scheduler.filterCbs()
+	scheduler.rm_sync_access_op()
+	
 	scheduler.createOrderVariables()
 		
 	#scheduler.addDistinctConstraint()
-	
+	'''
 	#scheduler.addProgramAtomicityConstraint()
 	scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
@@ -1383,6 +1423,6 @@ def startDebug(parsedResult, isRace, isChain):
 		scheduler.mergeRace()
 		scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
-				
+	'''			
 	print '*******END DEBUG*******'
 	pass

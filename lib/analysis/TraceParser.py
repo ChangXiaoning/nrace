@@ -241,6 +241,7 @@ class CbStack:
 	
 	def save_register_resolve (self, rr):
 		self.rrdict[rr.lineno] = rr
+		self.records[rr.lineno] = rr
 		pass
 
 	def top (self):
