@@ -208,19 +208,16 @@ class Scheduler:
 		print('^^^^^^CREATE ORDER VARIABLE^^^^^^')
 		count = 0
 		
-		for cb in self.cbs.values():
+		for cb in self.cbs.values():	
 			if hasattr(cb, 'start'):
 				self.grid[cb.start]=z3.Int('Instruction_for_%s' %(cb.start))
 				count += 1
 				#self.solver.add(self.grid[cb.start]>0)
-			#if cb.asyncId == '1':
-				#print("CB HAS END: %s" %(hasattr(cb, 'end')))
-			'''
 			if hasattr(cb, 'end'):
 				self.grid[cb.end]=z3.Int('Instruction_for_%s' %(cb.end))
-				self.solver.add(self.grid[cb.end]>0)	
+				#self.solver.add(self.grid[cb.end]>0)	
 			#self.grid[cb.register]=z3.Int('Instruction_for_%s' %(cb.register)) 
-			
+			'''
 			for lineno in cb.records:
 				#print 'lineno in cb.records is: %s' %(lineno)
 				self.grid[lineno]=z3.Int('Instruction_for_%s' %(lineno))
@@ -246,13 +243,12 @@ class Scheduler:
 		'''
 		for rcd in self.records.values():
 			print("[%s]: var: %s, file: %s" (rcd.lineno, isinstance(rcd, TraceParser.DataAccessRecord), isinstance(rcd, TraceParser.FileAccessRecord)))
-		'''
-		print("Remove")
-		print('1368r' in self.records.keys())
+		'''	
 		
 		for cb in self.cbs.values():
 			if len(cb.records) == 0:
 				continue
+			#print(print_obj(cb, ['start', 'end', 'records']))
 			#print('--------Before remove sync rcdList is:')
 			#print(cb.records)
 			#print('\n')
@@ -305,6 +301,42 @@ class Scheduler:
 					#print("2. Atomicity: %s == %s - 1" %(cb.records[i], cb.records[j]))
 					i = j
 					j += 1
+			if not hasattr(cb, 'end'):
+				continue
+			last = None
+			for i in range(len(cb.records)-1, -1, -1):
+				if isinstance(self.records[cb.records[i]], TraceParser.Reg_or_Resolve_Op) and re.search('rr', cb.records[i]) or isinstance(self.records[cb.records[i]], TraceParser.FileAccessRecord) and self.records[cb.records[i]].isAsync == True:
+					continue
+				else:
+					last = i
+					break
+			self.solver.add(self.grid[cb.records[last]] == self.grid[cb.end] - 1)
+			#print("3. Atomicity: %s == %s - 1" %(cb.records[last], cb.end))
+		
+		#2nd atomicity constraint
+		for cbi in self.cbs.values():
+			if not hasattr(cbi, 'start') or not hasattr(cbi, 'end'):
+				continue
+			for cbj in self.cbs.values():
+				if cbi == cbj:
+					continue
+				if not hasattr(cbj, 'start') or not hasattr(cbj, 'end'):
+					continue
+				self.solver.add(z3.Or(self.grid[cbi.end] < self.grid[cbj.start], self.grid[cbi.start] > self.grid[cbj.end]))
+				#print("4. Atomicity: %s < %s or %s > %s" %(cbi.end, cbj.start, cbi.start, cbj.end))
+
+		#3rd atomicity constraint:
+		#during debugging, find another atomicity constraint:
+		#the global script "callback" must happen before all other callbacks
+
+		global_start = self.cbs['1'].start
+		for cb in self.cbs.values():
+			if cb.asyncId == '1':
+				continue
+			if not hasattr(cb, 'start'):
+				continue
+			self.solver.add(self.grid[global_start] < self.grid[cb.start])
+			#print("5. Atomicity: %s < %s" %(global_start, cb.start))
 		print("after atomicity: %s" %(self.check()))
 		pass
 
@@ -472,23 +504,58 @@ class Scheduler:
 		pass
 	
 	def add_file_constraint (self):
-		print("FS CONSTRAINT")
-		
-		print('self.records:')
-		print('1368r' in self.records.keys())
 		for rcd in self.records.values():
 			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
-				print('\n')
-				print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve']))
+				#print('\n')
+				#print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve']))
 				#constraint 1: asynchronous file operation happens after the register of cb
 				#print("register: %s"  %(rcd.register))
 				#print(rcd.register in self.grid)
 				self.solver.add(self.grid[rcd.register] < self.grid[rcd.lineno])
-				print("1. file: %s < %s" %(rcd.register, rcd.lineno))	
+				#print("1. file: %s < %s" %(rcd.register, rcd.lineno))	
 				#constraint 2: asynchronous file operation happens before the resolve of callback
 				self.solver.add(self.grid[rcd.lineno] < self.grid[rcd.resolve])
-				print("2. file: %s < %s" %(rcd.lineno, rcd.resolve))	
+				#print("2. file: %s < %s" %(rcd.lineno, rcd.resolve))	
 		print("after file_cons: %s" %(self.check()))
+		pass
+	
+	def fifo (self):
+		for cbi in self.cbs.values():
+			if cbi.asyncId == '1':
+				continue
+			if not hasattr(cbi, 'start'):
+				continue
+			triggeri = str(cbi.register) + 'rr'
+			for cbj in self.cbs.values():
+				if cbj.asyncId == '1':
+					continue
+				if cbi == cbj:
+					continue
+				if not hasattr(cbj, 'start'):
+					continue
+				triggerj = str(cbj.register) + 'rr'
+				self.solver.add(z3.Or(z3.And(self.grid[triggeri] < self.grid[triggerj], self.grid[cbi.start] < self.grid[cbj.start]), z3.And(self.grid[triggeri] > self.grid[triggerj], self.grid[cbi.start] > self.grid[cbj.start])))
+				#print("fifo: %s < %s and %s < %s or %s > %s and %s > %s" %(triggeri, triggerj, cbi.start, cbj.start, triggeri, triggerj, cbi.start, cbj.start))
+		
+		print("after fifo: %s" %(self.check()))
+		pass
+
+	def diffQ (self):
+		for cbi in self.cbs.values():
+			if cbi.asyncId == '1':
+				continue
+			if cbi.priority != 1:
+				continue
+			if not hasattr(cbi, 'start'):
+				continue
+			triggeri = str(cbi.register) + 'rr'
+			for cbj in self.cbs.values():
+				if cbj.asyncId == '1':
+					continue
+				if cbi.priority == 1:
+					continue
+				if not hasattr(cbi, 'start'):
+					continue
 		pass
 
 	def addPriorityConstraint_bak (self):
@@ -1492,6 +1559,7 @@ def startDebug(parsedResult, isRace, isChain):
 	#scheduler.addRegisterandResolveConstraint()
 	scheduler.add_reg_and_resolve_constraint()
 	scheduler.add_file_constraint()
+	scheduler.fifo()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
 	'''			

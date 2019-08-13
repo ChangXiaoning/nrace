@@ -587,9 +587,9 @@ def processLine (line):
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
 		
-		#if lineno > 1350 and lineno < 1400:
-		#print(lineno)
-		#print('======line is: %s' %(line))
+		if lineno == 2168:
+			print(lineno)
+			print('======line is: %s' %(line))
 	
 		item=line.split(",")
 		itemEntryType=item[0]
@@ -685,8 +685,8 @@ def processLine (line):
 				resolve = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'rr')
 				record.register = register.lineno
 				record.resolve = resolve.lineno
-				if lineno == 1368:
-					print(print_obj(record, ['lineno', 'cb', 'isAsync', 'register', 'resolve', 'eid']))
+				#if lineno == 1368:
+					#print(print_obj(record, ['lineno', 'cb', 'isAsync', 'register', 'resolve', 'eid']))
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
@@ -732,6 +732,13 @@ def processLine (line):
 			#to make each instruction has a unique lineno
 			lineno=lineno+1
 			cbCtx.enter(cb.asyncId, lineno)
+			#add register and resolve op for the global script "callback" and save them into records
+			#register = Reg_or_Resolve_Op(None, '1', 'GLOBALCB', str(lineno) + 'r')
+			#resolve = Reg_or_Resolve_Op(None, '1', 'GLOBALCB', str(lineno) + 'rr')
+			#cbCtx.cbs['1'].addRecord(register)
+			#cbCtx.cbs['1'].addRecord(resolve)
+			#cbCtx.save_register_resolve(register)
+			#cbCtx.save_register_resolve(resolve)
 			#function_enter	
 			funCtx.enter(item[1])
 		elif itemEntryType==LogEntryType["SCRIPT_EXIT"]:
