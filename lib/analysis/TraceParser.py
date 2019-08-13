@@ -572,8 +572,8 @@ def processLine (line):
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
 		
-		#print(lineno)
-		#print('======line is: %s' %(line))
+		print(lineno)
+		print('======line is: %s' %(line))
 	
 		item=line.split(",")
 		itemEntryType=item[0]
@@ -663,9 +663,9 @@ def processLine (line):
 				record.cb = cbCtx.getNewestCb()
 			
 				#associate the generated Reg_or_Resolve_Op instance with the file operation
-				associatedCb = record.cb
-				record.register = Reg_or_Resolve_Op(associatedCb.prior, associated.asyncId, associated.resourceType, lineno)
-				record.resolve = Reg_or_Resolve_Op(associatedCb.prior, associated.asyncId, associated.resourceType, lineno + 'rr') 
+				associatedCb = cbCtx.cbs[record.cb]
+				record.register = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, lineno)
+				record.resolve = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'rr') 
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
@@ -680,12 +680,14 @@ def processLine (line):
 			resolve = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'rr')
 			#print(cbCtx.cbs)
 			#print(cbCtx.stack)
-			cbCtx.cbs[item[3]].addRecord(register)
-			cbCtx.cbs[item[3]].addRecord(resolve)
-			cbCtx.save_register_resolve(register)
-			cbCtx.save_register_resolve(resolve)
-			register = None
-			resolve = None
+			#there is a cb, whose asyncId is 0
+			if item[3] in cbCtx.cbs:
+				cbCtx.cbs[item[3]].addRecord(register)
+				cbCtx.cbs[item[3]].addRecord(resolve)
+				cbCtx.save_register_resolve(register)
+				cbCtx.save_register_resolve(resolve)
+				register = None
+				resolve = None
 			#else:
 				#lastRegister = register
 		elif itemEntryType==LogEntryType["ASYNC_BEFORE"]:	
@@ -762,7 +764,7 @@ def processLine (line):
 			cbCtx.addFileRecord(record)	
 			if cbCtx.top() in cbCtx.cbs:
 				if hasattr(record, 'register'):
-					cbCtx.cbs[cbCtx.top()].addRecord(record.reigster)
+					cbCtx.cbs[cbCtx.top()].addRecord(record.register)
 					cbCtx.save_register_resolve(record.register)
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
 				if hasattr(record, 'resolve'):
@@ -790,7 +792,7 @@ def processTraceFile (traceFile):
 	'''
 	#TODO: add python stdout 
 	#print "======Begin to parse the trace file %s" %(traceFile)
-	
+	'''	
 	with open(traceFile) as f:
 		line=f.readline()
 		while line:
@@ -810,7 +812,7 @@ def processTraceFile (traceFile):
 			while line:
 				processLine(line.strip())
 				line = f.readline()
-	'''
+	
 	
 	result=dict()	
 	result['cbs']=cbCtx.cbs
