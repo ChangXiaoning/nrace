@@ -239,7 +239,7 @@ class CbStack:
 		self.stack=list()
 		self.cbs=dict()
 		#if the data access happens after the script exits and before enter a callback, allocate '0' to its eid
-		#self.cbs['0'] = '0'
+		#self.cbs['0'] = None
 		#all data access records and file access records are stored in self.records property, indexed by lineno
 		self.records=dict()
 		self.vars=dict()
@@ -290,7 +290,7 @@ class CbStack:
 		#1.save the param cb in self.cbs
 		self.cbs[cb.asyncId]=cb
 		
-		#2.save the cb.asyncId into its prior cb
+		#2.save the cb.asyncId into its prior cb	
 		if cb.prior != None and cb.prior in self.cbs:
 			self.cbs[cb.prior].addPostCb(cb)
 			#note: it is possible for the global script to register callbacks after the script exit
@@ -305,7 +305,10 @@ class CbStack:
 	
 	def getNewestCb (self):
 		# return the asyncId of last initialized callback
-		return self.cbForFile[len(self.cbForFile)-1]
+		res = None
+		for i in range(len(self.cbForFile)-1, -1, -1):
+			if self.cbs[self.cbForFile[i]].priority == 3:
+				return self.cbForFile[i]
 		pass
 
 	def addDARecord (self, rcd):
@@ -584,8 +587,9 @@ def processLine (line):
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
 		
-		print(lineno)
-		print('======line is: %s' %(line))
+		#if lineno > 1350 and lineno < 1400:
+		#print(lineno)
+		#print('======line is: %s' %(line))
 	
 		item=line.split(",")
 		itemEntryType=item[0]
@@ -673,11 +677,16 @@ def processLine (line):
 			if record.isAsync == True:
 				#associate asynchronous file operation with its callback
 				record.cb = cbCtx.getNewestCb()
-			
+				#if lineno == 1368:
+					#print(print_obj(record, ['lineno', 'cb', 'isAsync']))
 				#associate the generated Reg_or_Resolve_Op instance with the file operation
 				associatedCb = cbCtx.cbs[record.cb]
-				record.register = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'r')
-				record.resolve = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'rr') 
+				register = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'r')
+				resolve = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'rr')
+				record.register = register.lineno
+				record.resolve = resolve.lineno
+				if lineno == 1368:
+					print(print_obj(record, ['lineno', 'cb', 'isAsync', 'register', 'resolve', 'eid']))
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
@@ -693,7 +702,7 @@ def processLine (line):
 			#print(cbCtx.cbs)
 			#print(cbCtx.stack)
 			#there is a cb, whose asyncId is 0
-			if item[3] in cbCtx.cbs:
+			if item[3] in cbCtx.cbs and item[3] != '0':
 				cbCtx.cbs[item[3]].addRecord(register)
 				cbCtx.cbs[item[3]].addRecord(resolve)
 				cbCtx.save_register_resolve(register)
@@ -773,15 +782,17 @@ def processLine (line):
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
 			#isDeclaredLocal for false positive
 		else:
-			cbCtx.addFileRecord(record)	
-			if cbCtx.top() in cbCtx.cbs:
-				if hasattr(record, 'register'):
-					cbCtx.cbs[cbCtx.top()].addRecord(record.register)
-					cbCtx.save_register_resolve(record.register)
+			#cbCtx.addFileRecord(record)
+			#print(cbCtx.top() in cbCtx.cbs)
+			if cbCtx.top() in cbCtx.cbs or record.eid != '0':
+				cbCtx.addFileRecord(record)
+				if hasattr(record, 'register'):	
+					cbCtx.cbs[cbCtx.top()].addRecord(register)
+					cbCtx.save_register_resolve(register)
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
 				if hasattr(record, 'resolve'):
-					cbCtx.cbs[cbCtx.top()].addRecord(record.resolve)
-					cbCtx.save_register_resolve(record.resolve)
+					cbCtx.cbs[cbCtx.top()].addRecord(resolve)
+					cbCtx.save_register_resolve(resolve)
 	pass
 
 def searchFile (directory, filePrefix):

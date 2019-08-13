@@ -5,6 +5,7 @@ import TraceParser
 import Logging
 
 logger=Logging.logger
+#print_obj = TraceParser.print_obj
 
 rootPath=os.path.dirname(os.path.realpath(__file__))
 z3path=rootPath+'/z3py/bin/python/z3'
@@ -15,6 +16,15 @@ import __builtin__
 __builtin__.Z3_LIB_DIRS=[rootPath+'/z3py/bin']
 
 import z3
+
+def print_obj (obj, fieldList):
+	res=list()
+	for prop in obj.__dict__:
+		if prop not in fieldList:
+			continue
+		res.append(str(prop)+':'+str(obj.__dict__[prop]))
+	return '{'+', '.join(res)+'}'
+	pass
 
 def printDict (dict):
 	'''print dict <dict> for debug'''
@@ -237,11 +247,15 @@ class Scheduler:
 		for rcd in self.records.values():
 			print("[%s]: var: %s, file: %s" (rcd.lineno, isinstance(rcd, TraceParser.DataAccessRecord), isinstance(rcd, TraceParser.FileAccessRecord)))
 		'''
+		print("Remove")
+		print('1368r' in self.records.keys())
+		
 		for cb in self.cbs.values():
 			if len(cb.records) == 0:
 				continue
 			#print('--------Before remove sync rcdList is:')
 			#print(cb.records)
+			#print('\n')
 			rcdList = cb.records
 			sync_op = [x for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == False]
 			sync_op_index = [rcdList.index(x) for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == False]
@@ -278,7 +292,7 @@ class Scheduler:
 			if len(cb.records) == 0:
 				continue
 			#print("\n-----cb.records:")
-			print(cb.records)
+			#print(cb.records)
 			i = 0
 			j = i + 1
 			self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
@@ -443,14 +457,38 @@ class Scheduler:
 			#register = resolve - 1 for nextTick, immediate and timeout event
 			#register < resolve for other events
 			if self.records[lineno].resourceType in ['TickObject', 'Immediate', 'Timeout']:
-				self.solver.add(self.grid[lineno] == self.grid[str(lineno) + 'rr'] - 1)
-				print("1. r&r cons: %s == %s - 1" %(lineno, str(lineno) + 'rr'))
+				self.solver.add(self.grid[lineno] == self.grid[lineno + 'r'] - 1)
+				#print("1. r&r cons: %s == %s - 1" %(lineno, lineno + 'r'))
 			else:
-				self.solver.add(self.grid[lineno] < self.grid[str(lineno) + 'rr'])
-				print("2. r&r cons: %s < %s" %(lineno, str(lineno) + 'rr'))
+				self.solver.add(self.grid[lineno] < self.grid[lineno + 'r'])
+				#print("2. r&r cons: %s < %s" %(lineno, lineno + 'r'))
 			#resolve < start
-			asyncId = self.records[lineno].
+			asyncId = self.records[lineno].follower
+			cb = self.cbs[asyncId]
+			if hasattr(cb, 'start'):
+				self.solver.add(self.grid[lineno + 'r'] < self.grid[cb.start])
+				#print("3. r&r cons: %s < %s" %(lineno + 'r', cb.start))
 		print("after r&r: %s" %(self.check()))
+		pass
+	
+	def add_file_constraint (self):
+		print("FS CONSTRAINT")
+		
+		print('self.records:')
+		print('1368r' in self.records.keys())
+		for rcd in self.records.values():
+			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
+				print('\n')
+				print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve']))
+				#constraint 1: asynchronous file operation happens after the register of cb
+				#print("register: %s"  %(rcd.register))
+				#print(rcd.register in self.grid)
+				self.solver.add(self.grid[rcd.register] < self.grid[rcd.lineno])
+				print("1. file: %s < %s" %(rcd.register, rcd.lineno))	
+				#constraint 2: asynchronous file operation happens before the resolve of callback
+				self.solver.add(self.grid[rcd.lineno] < self.grid[rcd.resolve])
+				print("2. file: %s < %s" %(rcd.lineno, rcd.resolve))	
+		print("after file_cons: %s" %(self.check()))
 		pass
 
 	def addPriorityConstraint_bak (self):
@@ -1452,6 +1490,8 @@ def startDebug(parsedResult, isRace, isChain):
 	#scheduler.addProgramAtomicityConstraint()
 	scheduler.add_atomicity_constraint()
 	#scheduler.addRegisterandResolveConstraint()
+	scheduler.add_reg_and_resolve_constraint()
+	scheduler.add_file_constraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
 	'''			
