@@ -240,13 +240,13 @@ class Scheduler:
 		for cb in self.cbs.values():
 			if len(cb.records) == 0:
 				continue
-			print('--------Before remove sync rcdList is:')
-			print(cb.records)
+			#print('--------Before remove sync rcdList is:')
+			#print(cb.records)
 			rcdList = cb.records
 			sync_op = [x for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == True]
 			sync_op_index = [rcdList.index(x) for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == True]
-			print("1. sync_op: %s" %(sync_op))
-			print("1. sync_op_index: %s" %(sync_op_index))
+			#print("1. sync_op: %s" %(sync_op))
+			#print("1. sync_op_index: %s" %(sync_op_index))
 			
 			for i in range(0, len(sync_op_index) - 1):
 				#print("i: %s" %(i))
@@ -259,15 +259,37 @@ class Scheduler:
 				if isinstance(self.records[sync_op[-1]], TraceParser.DataAccessRecord) or isinstance(self.records[sync_op[-1]], TraceParser.FileAccessRecord) and self.records[sync_op[-1]].isAsync == True:
 					sync_op.pop()
 			
-			print("2. sync_op: %s" %(sync_op))
+			#print("2. sync_op: %s" %(sync_op))
 			for i in range(len(rcdList) - 1, -1, -1):
 				if rcdList[i] in sync_op:
 					rcdList.pop(i)
 
 			cb.records = rcdList
-			print('--------After remove sync rcdList is:')
+			#print('--------After remove sync rcdList is:')
 			print(cb.records)
 			print('\n')
+		pass
+	
+	def add_atomicity_constraint (self):
+		for cb in self.cbs.values():
+			if not hasattr(cb, 'start'):
+				continue
+			if len(cb.records) == 0:
+				continue
+			print("-----cb.records:")
+			print(cb.records)
+			i = 0
+			j = i + 1
+			self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
+			print("1. Atomicity: %s == %s - 1" %(cb.start, cb.records[i]))
+			while i < len(cb.records) - 1 and j < len(cb.records):
+				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True or type(cb.records[j]) == str:
+					j += 1
+				else:
+					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
+					print("2. Atomicity: %s == %s - 1" %(cb.records[i], cb.records[j]))
+					i = j
+					j += 1
 		pass
 
 	def addProgramAtomicityConstraint (self):
@@ -1405,12 +1427,13 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.createOrderVariables()
 		
 	#scheduler.addDistinctConstraint()
-	'''
+	
 	#scheduler.addProgramAtomicityConstraint()
-	scheduler.addRegisterandResolveConstraint()
+	scheduler.add_atomicity_constraint()
+	#scheduler.addRegisterandResolveConstraint()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-				
+	'''			
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
