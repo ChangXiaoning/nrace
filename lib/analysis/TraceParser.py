@@ -178,13 +178,25 @@ class Callback:
 		self.end=lineno
 		#self.addInstruction(lineno)
 		pass
+	
+	def isOneAccessRecord (self):
+		count = 0
+		for rcd in self.records:
+			if not isinstance(rcd, Reg_or_Resolve_Op):
+				count += 1
+		if count == 1:
+			return True
+		else:
+			return False
+		pass
 
 	def addRecord (self, rcd):	
 		self.records.append(rcd.lineno)
 		#because we use addRecord() to save Reg_or_Resolve instance, so it can have no attribute 'location'
 		if isinstance(rcd, Reg_or_Resolve_Op):
 			return
-		if len(self.records)==1:
+		#if len(self.records)==1:
+		if self.isOneAccessRecord():
 			self.location=rcd.location
 		#self.addInstruction(rcd.lineno)
 		pass
@@ -664,7 +676,7 @@ def processLine (line):
 			
 				#associate the generated Reg_or_Resolve_Op instance with the file operation
 				associatedCb = cbCtx.cbs[record.cb]
-				record.register = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, lineno)
+				record.register = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'r')
 				record.resolve = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'rr') 
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
@@ -675,7 +687,7 @@ def processLine (line):
 				lastManualFile = None
 			'''
 			#generate Reg_or_Resolve_Op instance
-			register = Reg_or_Resolve_Op(item[3], item[1], item[2], lineno)
+			register = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'r')
 			#if item[2] == 'TickObject' or item[2] == 'Immediate' or item[2] == 'Timeout':
 			resolve = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'rr')
 			#print(cbCtx.cbs)

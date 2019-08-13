@@ -243,8 +243,8 @@ class Scheduler:
 			#print('--------Before remove sync rcdList is:')
 			#print(cb.records)
 			rcdList = cb.records
-			sync_op = [x for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == True]
-			sync_op_index = [rcdList.index(x) for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == True]
+			sync_op = [x for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == False]
+			sync_op_index = [rcdList.index(x) for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == False]
 			#print("1. sync_op: %s" %(sync_op))
 			#print("1. sync_op_index: %s" %(sync_op_index))
 			
@@ -256,18 +256,19 @@ class Scheduler:
 					del sync_op[i]
 			
 			if len(sync_op) > 0:
-				if isinstance(self.records[sync_op[-1]], TraceParser.DataAccessRecord) or isinstance(self.records[sync_op[-1]], TraceParser.FileAccessRecord) and self.records[sync_op[-1]].isAsync == True:
+				if isinstance(self.records[sync_op[-1]], TraceParser.DataAccessRecord) or isinstance(self.records[sync_op[-1]], TraceParser.FileAccessRecord) and self.records[sync_op[-1]].isAsync == False:
 					sync_op.pop()
 			
 			#print("2. sync_op: %s" %(sync_op))
+			#print("2. sync_op_index: %s" %(sync_op_index))
 			for i in range(len(rcdList) - 1, -1, -1):
 				if rcdList[i] in sync_op:
 					rcdList.pop(i)
 
 			cb.records = rcdList
 			#print('--------After remove sync rcdList is:')
-			print(cb.records)
-			print('\n')
+			#print(cb.records)
+			#print('\n')
 		pass
 	
 	def add_atomicity_constraint (self):
@@ -276,20 +277,21 @@ class Scheduler:
 				continue
 			if len(cb.records) == 0:
 				continue
-			print("-----cb.records:")
+			#print("\n-----cb.records:")
 			print(cb.records)
 			i = 0
 			j = i + 1
 			self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
-			print("1. Atomicity: %s == %s - 1" %(cb.start, cb.records[i]))
+			#print("1. Atomicity: %s == %s - 1" %(cb.start, cb.records[i]))
 			while i < len(cb.records) - 1 and j < len(cb.records):
-				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True or type(cb.records[j]) == str:
+				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True or type(cb.records[j]) == str and re.search('rr', cb.records[j]):
 					j += 1
 				else:
 					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
-					print("2. Atomicity: %s == %s - 1" %(cb.records[i], cb.records[j]))
+					#print("2. Atomicity: %s == %s - 1" %(cb.records[i], cb.records[j]))
 					i = j
 					j += 1
+		print("after atomicity: %s" %(self.check()))
 		pass
 
 	def addProgramAtomicityConstraint (self):
@@ -430,6 +432,25 @@ class Scheduler:
 		print("Register number: %s\n" %(self.register_number))
 		print("after register: %s" %(self.check()))
 
+		pass
+
+	def add_reg_and_resolve_constraint (self):
+		for lineno in self.records:
+			if not isinstance(self.records[lineno], TraceParser.Reg_or_Resolve_Op):
+				continue
+			if re.search('rr', lineno):
+				continue
+			#register = resolve - 1 for nextTick, immediate and timeout event
+			#register < resolve for other events
+			if self.records[lineno].resourceType in ['TickObject', 'Immediate', 'Timeout']:
+				self.solver.add(self.grid[lineno] == self.grid[str(lineno) + 'rr'] - 1)
+				print("1. r&r cons: %s == %s - 1" %(lineno, str(lineno) + 'rr'))
+			else:
+				self.solver.add(self.grid[lineno] < self.grid[str(lineno) + 'rr'])
+				print("2. r&r cons: %s < %s" %(lineno, str(lineno) + 'rr'))
+			#resolve < start
+			asyncId = self.records[lineno].
+		print("after r&r: %s" %(self.check()))
 		pass
 
 	def addPriorityConstraint_bak (self):
