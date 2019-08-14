@@ -146,6 +146,7 @@ class Scheduler:
 		self.solver=z3.Solver()
 		self.grid=dict()
 		self.cbs=parsedResult['cbs']
+		#print("debug-new scheduler: %s" %(print_obj(self.cbs['39'], ['records'])))
 		self.records=parsedResult['records']
 		self.variables=parsedResult['vars']
 		self.files = parsedResult['files']
@@ -215,14 +216,18 @@ class Scheduler:
 				#self.solver.add(self.grid[cb.start]>0)
 			if hasattr(cb, 'end'):
 				self.grid[cb.end]=z3.Int('Instruction_for_%s' %(cb.end))
+				count += 1
 				#self.solver.add(self.grid[cb.end]>0)	
 			#self.grid[cb.register]=z3.Int('Instruction_for_%s' %(cb.register)) 
-			'''
+		'''
+			#print("^^^debug: %s" %('39' in self.cbs))
+			#if cb.asyncId == '39':
+				#print("debug: %s" %(print_obj(cb, ['records'])))
 			for lineno in cb.records:
-				#print 'lineno in cb.records is: %s' %(lineno)
 				self.grid[lineno]=z3.Int('Instruction_for_%s' %(lineno))
-				self.solver.add(self.grid[lineno]>0)
-			'''
+				count += 1
+				#self.solver.add(self.grid[lineno]>0)
+		'''
 		for rcdLineno in self.records:
 			self.grid[rcdLineno] = z3.Int('Instruction_for_%s' %(rcdLineno))
 			count += 1
@@ -244,17 +249,19 @@ class Scheduler:
 		for rcd in self.records.values():
 			print("[%s]: var: %s, file: %s" (rcd.lineno, isinstance(rcd, TraceParser.DataAccessRecord), isinstance(rcd, TraceParser.FileAccessRecord)))
 		'''	
-		
+		print("^^^^^^^^^^^remove^^^^^^^^^^^^^")	
 		for cb in self.cbs.values():
+			#if cb.asyncId == '39':
+				#print("debug-rm: %s" %(print_obj(cb, ['records'])))
 			if len(cb.records) == 0:
-				continue
+				continue	
 			#print(print_obj(cb, ['start', 'end', 'records']))
 			#print('--------Before remove sync rcdList is:')
 			#print(cb.records)
 			#print('\n')
 			rcdList = cb.records
-			sync_op = [x for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == False]
-			sync_op_index = [rcdList.index(x) for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord) or isinstance(self.records[x], TraceParser.FileAccessRecord) and self.records[x].isAsync == False]
+			sync_op = [x for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord)]
+			sync_op_index = [rcdList.index(x) for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord)]
 			#print("1. sync_op: %s" %(sync_op))
 			#print("1. sync_op_index: %s" %(sync_op_index))
 			
@@ -266,7 +273,7 @@ class Scheduler:
 					del sync_op[i]
 			
 			if len(sync_op) > 0:
-				if isinstance(self.records[sync_op[-1]], TraceParser.DataAccessRecord) or isinstance(self.records[sync_op[-1]], TraceParser.FileAccessRecord) and self.records[sync_op[-1]].isAsync == False:
+				if isinstance(self.records[sync_op[-1]], TraceParser.DataAccessRecord):
 					sync_op.pop()
 			
 			#print("2. sync_op: %s" %(sync_op))
@@ -289,6 +296,7 @@ class Scheduler:
 				continue
 			#print("\n-----cb.records:")
 			#print(cb.records)
+			#1st atomicity cons: every callback cannot be interrupted
 			i = 0
 			j = i + 1
 			self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
@@ -481,41 +489,46 @@ class Scheduler:
 		pass
 
 	def add_reg_and_resolve_constraint (self):
-		for lineno in self.records:
-			if not isinstance(self.records[lineno], TraceParser.Reg_or_Resolve_Op):
-				continue
-			if re.search('rr', lineno):
-				continue
-			#register = resolve - 1 for nextTick, immediate and timeout event
-			#register < resolve for other events
-			if self.records[lineno].resourceType in ['TickObject', 'Immediate', 'Timeout']:
-				self.solver.add(self.grid[lineno] == self.grid[lineno + 'r'] - 1)
-				#print("1. r&r cons: %s == %s - 1" %(lineno, lineno + 'r'))
-			else:
-				self.solver.add(self.grid[lineno] < self.grid[lineno + 'r'])
-				#print("2. r&r cons: %s < %s" %(lineno, lineno + 'r'))
-			#resolve < start
-			asyncId = self.records[lineno].follower
-			cb = self.cbs[asyncId]
-			if hasattr(cb, 'start'):
-				self.solver.add(self.grid[lineno + 'r'] < self.grid[cb.start])
-				#print("3. r&r cons: %s < %s" %(lineno + 'r', cb.start))
+		for cb in self.cbs.values():
+			for lineno in cb.records:
+				if not isinstance(self.records[lineno], TraceParser.Reg_or_Resolve_Op):
+					continue
+				if re.search('rr', lineno):
+					continue
+				#register = resolve - 1 for nextTick, immediate and timeout event
+				#register < resolve for other events
+				if self.records[lineno].resourceType in ['TickObject', 'Immediate', 'Timeout']:	
+					self.solver.add(self.grid[lineno] == self.grid[lineno + 'r'] - 1)
+					#print("1. r&r cons: %s == %s - 1" %(lineno, lineno + 'r'))
+				else:
+					self.solver.add(self.grid[lineno] < self.grid[lineno + 'r'])
+					#print("2. r&r cons: %s < %s" %(lineno, lineno + 'r'))
+				#resolve < start
+				asyncId = self.records[lineno].follower
+				cb = self.cbs[asyncId]
+				if hasattr(cb, 'start'):
+					self.solver.add(self.grid[lineno + 'r'] < self.grid[cb.start])
+					#print("3. r&r cons: %s < %s" %(lineno + 'r', cb.start))
 		print("after r&r: %s" %(self.check()))
 		pass
 	
 	def add_file_constraint (self):
-		for rcd in self.records.values():
-			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
-				#print('\n')
-				#print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve']))
-				#constraint 1: asynchronous file operation happens after the register of cb
-				#print("register: %s"  %(rcd.register))
-				#print(rcd.register in self.grid)
-				self.solver.add(self.grid[rcd.register] < self.grid[rcd.lineno])
-				#print("1. file: %s < %s" %(rcd.register, rcd.lineno))	
-				#constraint 2: asynchronous file operation happens before the resolve of callback
-				self.solver.add(self.grid[rcd.lineno] < self.grid[rcd.resolve])
-				#print("2. file: %s < %s" %(rcd.lineno, rcd.resolve))	
+		
+		for cb in self.cbs.values():
+			rcdLinenos = cb.records
+			for lineno in rcdLinenos:
+				rcd = self.records[lineno]
+				if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
+					#print('\n')
+					#print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve']))
+					#constraint 1: asynchronous file operation happens after the register of cb
+					#print("register: %s"  %(rcd.register))
+					#print(rcd.register in self.grid)
+					self.solver.add(self.grid[rcd.register] < self.grid[rcd.lineno])
+					#print("1. file: %s < %s" %(rcd.register, rcd.lineno))	
+					#constraint 2: asynchronous file operation happens before the resolve of callback
+					self.solver.add(self.grid[rcd.lineno] < self.grid[rcd.resolve])
+					#print("2. file: %s < %s" %(rcd.lineno, rcd.resolve))	
 		print("after file_cons: %s" %(self.check()))
 		pass
 	
@@ -526,6 +539,7 @@ class Scheduler:
 			if not hasattr(cbi, 'start'):
 				continue
 			triggeri = str(cbi.register) + 'rr'
+			#print("debug-fifo: triggeri %s" %(triggeri in self.grid))
 			for cbj in self.cbs.values():
 				if cbj.asyncId == '1':
 					continue
@@ -534,6 +548,7 @@ class Scheduler:
 				if not hasattr(cbj, 'start'):
 					continue
 				triggerj = str(cbj.register) + 'rr'
+				#print("debug-fifo: triggerj %s" %(triggerj in self.grid))
 				self.solver.add(z3.Or(z3.And(self.grid[triggeri] < self.grid[triggerj], self.grid[cbi.start] < self.grid[cbj.start]), z3.And(self.grid[triggeri] > self.grid[triggerj], self.grid[cbi.start] > self.grid[cbj.start])))
 				#print("fifo: %s < %s and %s < %s or %s > %s and %s > %s" %(triggeri, triggerj, cbi.start, cbj.start, triggeri, triggerj, cbi.start, cbj.start))
 		

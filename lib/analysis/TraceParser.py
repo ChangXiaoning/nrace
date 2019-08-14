@@ -587,7 +587,7 @@ def processLine (line):
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
 		
-		if lineno == 2168:
+		if lineno == 2133:
 			print(lineno)
 			print('======line is: %s' %(line))
 	
@@ -702,11 +702,18 @@ def processLine (line):
 			#print(cbCtx.cbs)
 			#print(cbCtx.stack)
 			#there is a cb, whose asyncId is 0
+			#if lineno == 1955:
+				#print("debug for 39: %s" %(cbCtx.cbs.keys()))
 			if item[3] in cbCtx.cbs and item[3] != '0':
 				cbCtx.cbs[item[3]].addRecord(register)
 				cbCtx.cbs[item[3]].addRecord(resolve)
 				cbCtx.save_register_resolve(register)
 				cbCtx.save_register_resolve(resolve)
+				'''
+				if lineno == 1955:
+					print("debug records for 39: %s %s" %(cbCtx.cbs[item[3]].asyncId, cbCtx.cbs[item[3]].records))
+					print(item[3])
+				'''
 				register = None
 				resolve = None
 			#else:
@@ -846,6 +853,7 @@ def processTraceFile (traceFile):
 	
 	result=dict()	
 	result['cbs']=cbCtx.cbs
+	print("debug-processtracefile: %s" %(print_obj(cbCtx.cbs['39'], ['records'])))
 	result['records']=cbCtx.records
 	result['vars']=cbCtx.vars
 	result['files'] = cbCtx.files
