@@ -75,9 +75,9 @@ for i in range(1, trace.length() + 1):
 for i in range(1, trace.length() + 1):
     cb = trace.get(i)
     for j in range(1, cb.length()):
-        cb2Start = cb.get(j)
+        op1 = cb.get(j)
         op2 = cb.get(j + 1)
-        varOp1 = op2Var[cb2Start]
+        varOp1 = op2Var[op1]
         varOp2 = op2Var[op2]
         solver.add(varOp1 + 1 == varOp2)
 
