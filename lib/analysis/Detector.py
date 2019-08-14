@@ -1,7 +1,6 @@
 import TraceParser
 import z3Scheduler
 import z3Detector
-import z3Scheduler
 
 import sys
 import os
