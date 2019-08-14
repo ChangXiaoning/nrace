@@ -217,7 +217,11 @@ class Scheduler:
 			if hasattr(cb, 'end'):
 				self.grid[cb.end]=z3.Int('Instruction_for_%s' %(cb.end))
 				count += 1
-				#self.solver.add(self.grid[cb.end]>0)	
+				#self.solver.add(self.grid[cb.end]>0)
+			#create order variable for register op
+			self.grid[str(cb.register) + 'r'] = z3.Int('Instruction_for_%s' %(str(cb.register) + 'r'))
+			#create order variable for resolve op
+			self.grid[str(cb.register) + 'rr'] = z3.Int('Instruction_for_%s' %(str(cb.register) + 'rr'))
 			#self.grid[cb.register]=z3.Int('Instruction_for_%s' %(cb.register)) 
 		'''
 			#print("^^^debug: %s" %('39' in self.cbs))
@@ -228,7 +232,11 @@ class Scheduler:
 				count += 1
 				#self.solver.add(self.grid[lineno]>0)
 		'''
+		#create order variable for resource accessing op
 		for rcdLineno in self.records:
+			#skip register and resolve op because we have already create them above
+			if isinstance(self.records[rcdLineno], TraceParser.Reg_or_Resolve_Op):
+				continue
 			self.grid[rcdLineno] = z3.Int('Instruction_for_%s' %(rcdLineno))
 			count += 1
 			#self.solver.add(self.grid[rcdLineno] > 0)
@@ -302,6 +310,7 @@ class Scheduler:
 			self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
 			#print("1. Atomicity: %s == %s - 1" %(cb.start, cb.records[i]))
 			while i < len(cb.records) - 1 and j < len(cb.records):
+				#skip async file op and resolve op
 				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True or type(cb.records[j]) == str and re.search('rr', cb.records[j]):
 					j += 1
 				else:
@@ -334,7 +343,7 @@ class Scheduler:
 				#print("4. Atomicity: %s < %s or %s > %s" %(cbi.end, cbj.start, cbi.start, cbj.end))
 
 		#3rd atomicity constraint:
-		#during debugging, find another atomicity constraint:
+		#during debugging, find another atomicity (program) constraint:
 		#the global script "callback" must happen before all other callbacks
 
 		global_start = self.cbs['1'].start
@@ -488,7 +497,7 @@ class Scheduler:
 
 		pass
 
-	def add_reg_and_resolve_constraint (self):
+	def add_reg_and_resolve_constraint_bak (self):
 		for cb in self.cbs.values():
 			for lineno in cb.records:
 				if not isinstance(self.records[lineno], TraceParser.Reg_or_Resolve_Op):
@@ -509,6 +518,23 @@ class Scheduler:
 				if hasattr(cb, 'start'):
 					self.solver.add(self.grid[lineno + 'r'] < self.grid[cb.start])
 					#print("3. r&r cons: %s < %s" %(lineno + 'r', cb.start))
+		print("after r&r: %s" %(self.check()))
+		pass
+
+	def add_reg_and_resolve_constraint (self):
+		for cb in self.cbs.values():
+			if not hasattr(cb, 'start'):
+				continue
+			registerLine = str(cb.register) + 'r'
+			resolveLine = registerLine + 'r'
+			start = cb.start
+			#1st cons: register = resolve - 1  for nextTick, immediate, promise event. 'RESOLVE' is the promise event
+			if cb.resourceType in ['TickObject', 'RESOLVE', 'Immediate']:
+				self.solver.add(self.grid[registerLine] == self.grid[resolveLine] - 1)
+			else:
+				self.solver.add(self.grid[registerLine] < self.grid[resolveLine])
+			#2nd cons: resolve < start
+			self.solver.add(self.grid[resolveLine] < self.grid[start])
 		print("after r&r: %s" %(self.check()))
 		pass
 	
@@ -564,6 +590,7 @@ class Scheduler:
 			if not hasattr(cbi, 'start'):
 				continue
 			triggeri = str(cbi.register) + 'rr'
+			starti = cbi.start
 			for cbj in self.cbs.values():
 				if cbj.asyncId == '1':
 					continue
@@ -571,246 +598,12 @@ class Scheduler:
 					continue
 				if not hasattr(cbi, 'start'):
 					continue
+				startj = cbj.start
+				self.solver.add(z3.Implies(self.grid[triggeri] < self.grid[startj], self.grid[starti] < self.grid[startj]))
+		print("after diffQ: %s" %(self.check()))
 		pass
 
-	def addPriorityConstraint_bak (self):
-		#TODO: TIMEOUT
-		'''	
-		for cb in self.cbs.values():
-			printObj(cb)
 		'''
-		print("^^^^^^^PRIORITY^^^^^^")
-		self.priority_num = 0
-		
-		asynIds=map(lambda x: int(x), self.cbs.keys())
-		asynIds.sort()	
-		asynIds=map(lambda x: str(x), asynIds)
-		
-		#not consider the glocal script callback
-		for i in range(1, len(asynIds)):
-			
-			if not hasattr(self.cbs[asynIds[i]], 'start'):
-				continue
-
-			for j in range(1, len(asynIds)):
-				#print "********asyncId[i] is: %s, asyncId[j] is: %s" %(asynIds[i], asynIds[j])
-				
-				if i == j:
-					continue
-
-				if not hasattr(self.cbs[asynIds[j]], 'start'):
-					continue
-				
-				if self.cbHappensBefore(self.cbs[asynIds[i]], self.cbs[asynIds[j]]):
-					continue
-				
-				#same priority && not consider I/O callbacks && not consider setTimeout
-				if self.cbs[asynIds[i]].priority==self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority!=3 and self.cbs[asynIds[i]].priority!=2:
-					#same prior (father)
-					if self.cbs[asynIds[i]].prior==self.cbs[asynIds[j]].prior:
-						if self.cbs[asynIds[i]].register < self.cbs[asynIds[j]].register:
-							#print "asyncId[i] is: %s, asyncId[j] is: %s" %(asynIds[i], asynIds[j])
-							#printObj[self.cbs[asynIds[i]]]
-							#printObj[self.cbs[asynIds[j]]]
-							self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
-							self.priority_num += 1
-							#print '1. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
-						'''		
-						else:
-							self.solver.add(self.grid[self.cbs[asynIds[i]].start]>self.grid[self.cbs[asynIds[j]].start])
-							self.priority_num += 1
-							#print '2. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
-						'''
-					#different prior (father)
-					#check whether their father have happensBefore relation
-					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[i]].prior], self.cbs[self.cbs[asynIds[j]].prior]):
-						self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
-						self.priority_num += 1
-						#print '3. add a constraint: cb_%s<cb_%s' %(asynIds[i], asynIds[j])
-					'''
-					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[j]].prior], self.cbs[self.cbs[asynIds[i]].prior]):
-						self.solver.add(self.grid[self.cbs[asynIds[j]].start]<self.grid[self.cbs[asynIds[i]].start])
-						self.priority_num += 1
-						#print '4. add a constraint: cb_%s<cb_%s' %(asynIds[j], asynIds[i])
-					'''		
-				#different priority and one of them is of priority 1
-				#change: priority 0
-				elif self.cbs[asynIds[i]].priority!=self.cbs[asynIds[j]].priority and self.cbs[asynIds[i]].priority=='0':	
-					#same prior (father)
-					if self.cbs[asynIds[i]].prior==self.cbs[asynIds[j]].prior:
-						self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
-						self.priority_num += 1
-						#print '5. add a constraint: cb_%s<cb_%s' %(ealier, later)
-					
-					#different prior (father)
-					elif self.cbHappensBefore(self.cbs[self.cbs[asynIds[i]].prior], self.cbs[self.cbs[asynIds[j]].prior]):
-						self.solver.add(self.grid[self.cbs[asynIds[i]].start]<self.grid[self.cbs[asynIds[j]].start])
-						self.priority_num += 1
-						#print '6. add a constraint: cb_%s<cb_%s' %(ealier, later)
-				
-		print("Priority number: %s\n" %(self.priority_num))
-		pass
-
-	def addPriorityConstraint (self):
-		print("^^^^^^^PRIORITY^^^^^^")
-		self.priority_num = 0
-
-		for cb in self.cbs.values():
-			if not hasattr(cb, 'postCbs'):
-				continue
-			#printObj(cb)
-			
-			for postCbList in cb.postCbs.values():
-				i = 0
-				j = i + 1
-				while j < len(postCbList):
-					if not hasattr(self.cbs[postCbList[i]], 'start') or not hasattr(self.cbs[postCbList[j]], 'start'):
-						i = j
-						j += 1
-						continue
-					self.solver.add(self.grid[self.cbs[postCbList[i]].start] < self.grid[self.cbs[postCbList[j]].start])
-					self.priority_num += 1
-					self.save_in_matrix(postCbList[i], postCbList[j], 1)
-					i = j
-					j += 1
-			
-			#different priority
-			if not 0 in cb.postCbs:
-				continue
-			elif not 1 in cb.postCbs and not 3 in cb.postCbs:
-				continue
-
-			for earlier in cb.postCbs[0]:
-				if not hasattr(self.cbs[earlier], 'start'):
-					continue
-				if 1 in cb.postCbs:
-					for later in cb.postCbs[1]:
-						if not hasattr(self.cbs[later], 'start'):
-							continue
-						self.solver.add(self.grid[self.cbs[earlier].start] < self.grid[self.cbs[later].start])
-						self.save_in_matrix(earlier, later, 1)
-						self.priority_num += 1
-				if 3 in cb.postCbs:
-					for later in cb.postCbs[3]:
-						if not hasattr(self.cbs[later], 'start'):
-							continue
-						self.solver.add(self.grid[self.cbs[earlier].start] < self.grid[self.cbs[later].start])	
-						self.save_in_matrix(earlier, later, 1)
-						self.priority_num += 1
-
-		print("Priority number: %s\n" %(self.priority_num))
-		pass
-
-	def diff_prior_same_priority (self):
-		self.diff_prior_same_priority = 0
-
-		asynIds=map(lambda x: int(x), self.cbs.keys())
-		asynIds.sort()	
-		asynIds=map(lambda x: str(x), asynIds)
-
-		for cbi in asynIds:
-			if not hasattr(self.cbs[cbi], 'priority'):
-				continue
-			if self.cbs[cbi].priority == 3:
-				continue
-			if not hasattr(self.cbs[cbi], 'prior'):
-				continue
-			if not hasattr(self.cbs[cbi], 'start'):
-				continue
-			for cbj in asynIds:
-				if cbi == cbj:
-					continue
-				if self.cbs[cbj].priority != self.cbs[cbi].priority:
-					continue
-				if not hasattr(self.cbs[cbj], 'prior'):
-					continue
-				if not hasattr(self.cbs[cbj], 'start'):
-					continue
-				current = self.get_from_matrix(cbi, cbj)
-				if current == 1 or current == -1:
-					continue
-				res = self.get_from_matrix(self.cbs[cbi].prior, self.cbs[cbj].prior)
-				if res == 1:
-					self.solver.add(self.grid[self.cbs[cbi].start] < self.grid[self.cbs[cbj].start])
-					self.save_in_matrix(cbi, cbj, 1)
-					self.diff_prior_same_priority += 1
-				elif res == -1:
-					self.solver.add(self.grid[self.cbs[cbi].start] > self.grid[self.cbs[cbj].start])
-					self.save_in_matrix(cbi, cbj, -1)
-					self.diff_prior_same_priority += 1
-
-		print("Diff prior same priority: %s\n" %(self.diff_prior_same_priority))
-		pass
-
-	def diff_prior_diff_priority (self):
-		self.diff2_num = 0
-
-		asynIds=map(lambda x: int(x), self.cbs.keys())
-		asynIds.sort()	
-		asynIds=map(lambda x: str(x), asynIds)
-		
-		for cbi in asynIds:
-			if not hasattr(self.cbs[cbi], 'priority'):
-				continue
-			if self.cbs[cbi].priority != 0:
-				continue
-			if not hasattr(self.cbs[cbi], 'prior'):
-				continue
-			if not hasattr(self.cbs[cbi], 'start'):
-				continue
-			for cbj in asynIds:
-				if cbi == cbj:
-					continue
-				if self.cbs[cbj].priority == self.cbs[cbi].priority:
-					continue	
-				if not hasattr(self.cbs[cbj], 'start'):
-					continue
-				current = self.get_from_matrix(cbi, cbj)
-				if current == 1 or current == -1:
-					continue
-				res = self.get_from_matrix(self.cbs[cbi].prior, cbj)
-				if res == 1:
-					self.solver.add(self.grid[self.cbs[cbi].start] < self.grid[self.cbs[cbj].start])
-					self.save_in_matrix(cbi, cbj, 1)
-					self.diff2_num += 1
-				elif res == -1:
-					self.solver.add(self.grid[self.cbs[cbi].start] > self.grid[self.cbs[cbj].start])
-					self.save_in_matrix(cbi, cbj, -1)
-					self.diff2_num += 1
-		print("diff2 priority: %s" %(self.diff2_num))
-		pass
-
-	def addsetTimeoutPriority (self):
-		#TODO
-		pass
-
-	def addFsConstraint (self):
-		#TODO: if refactor, this needs to update
-		print("^^^^^^FS CONSTRAINT^^^^^^")
-		print("Before fs cons: %s" %(self.check()))
-		self.file_constraint_num = 0
-		#print '=====addFSconstraint====='
-		consName = 'fsConstraint'
-		for rcd in self.records.values():
-			if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
-				#constraint 1: asynchronous file operation happens after the callback that launches it
-				#print("key cb: %s" %(self.cbs.keys()))
-				#print("eid: %s\n" %(rcd.eid))
-				#print(rcd.lineno)
-				if rcd.eid in self.cbs and hasattr(self.cbs[rcd.eid], 'start'):
-					self.solver.add(self.grid[self.cbs[rcd.eid].start] < self.grid[rcd.lineno])
-					self.file_constraint_num += 1
-				#self.printConstraint(consName + '_1', rcd.eid, rcd.lineno)
-				#constraint 2: asynchronous file operation happens before the callback which will be executed when the file operation is completed
-				if hasattr(rcd, 'cb') and rcd.cb != None and hasattr(self.cbs[rcd.cb], 'start'):
-					self.solver.add(self.grid[rcd.lineno] < self.grid[self.cbs[rcd.cb].start])	
-					self.file_constraint_num += 1
-				#self.printConstraint(consName + '_2', rcd.lineno, self.cbs[rcd.cb].asyncId)
-
-		#print("after file constraint: %s" %(self.check()))
-		print("File number: %s\n" %(self.file_constraint_num))
-		pass
-	'''
 	def reorder (self, lineno1, lineno2):
 		# only exist one happens before another, it is happens-before relation. Otherwise, it is concurrency relation.
 		#@param daRcd: the lineno that represents the data access record
@@ -842,29 +635,7 @@ class Scheduler:
 		return isinstance(reorder(lineno1, lineno2), str)
 		pass
    
-	def happensBefore_bak (self, lineno1, lineno2):
-		#check whether lineno1 happens before lineno2
-		#@return <boolean>: if lineno1 happens before lineno2, return true
-
-		res=False
-		print '*********in happensBefore, lineno1 is: %s, lineno2 is: %s' %(lineno1, lineno2)
-		print '*****-1. soler is: %s' %(self.solver)
-		self.solver.push()
-		print '*****0. soler is: %s' %(self.solver)
-		self.solver.add(self.grid[lineno1]<self.grid[lineno2])
-		print '*****1. soler is: %s' %(self.solver)
-		if self.check():
-			self.solver.pop()
-			print '*****2. soler is: %s' %(self.solver)
-			self.solver.add(self.grid[lineno2]<self.grid[lineno1])
-			print '*****3. soler is: %s' %(self.solver)
-			if not self.check():
-				res=True
-		print '*****4. soler is: %s' %(self.solver)
-		self.solver.pop()
-		return res
-		pass
-	'''
+		'''
 	def happensBefore (self, lineno1, lineno2):
 		
 		#print '^^^^^^^^^^in happensBefore: %s, %s' %(lineno1, lineno2)
@@ -888,27 +659,6 @@ class Scheduler:
 			return True
 		pass
 
-	def cbHappensBefore_bak (self, cb1, cb2):
-		
-		print("THIS IS cbhappensbefore");
-		if cb1==None or cb2==None or cb1==cb2:
-			return False
-		self.solver.push()
-		self.solver.add(self.grid[cb1.start]<self.grid[cb2.start])
-		res=self.check()
-		self.solver.pop()
-		if not res:
-			return False
-		self.solver.push()
-		self.solver.add(self.grid[cb1.start]>self.grid[cb2.start])
-		res=self.check()
-		self.solver.pop()
-		if res:
-			return False
-		else:
-			return True
-		pass
-
 	def cbHappensBefore (self, cb1, cb2):
 		if cb1 == None or cb2 == None or cb1 == cb2:
 			return False
@@ -926,14 +676,6 @@ class Scheduler:
 			return True
 		pass
 
-	'''
-	def isConcurrent_new (self, lineno1, lineno2):
-		print '**********isConcurrent_new: '
-		print 'self.happensBefore(%s, %s) is: %s' %(lineno1, lineno2, self.happensBefore(lineno1, lineno2))
-		print 'self.happensBefore(%s, %s) is: %s' %(lineno2, lineno1, self.happensBefore(lineno2, lineno1))
-		return self.happensBefore(lineno1, lineno2) and self.happensBefore(lineno2, lineno1)
-		pass
-	'''
 	def isConcurrent_new__1_bak (self, lineno1, lineno2):	
 		#print("before all: %s" %(self.check()))
 		
@@ -1143,7 +885,7 @@ class Scheduler:
 			return False
 		pass
 
-	def detectRace (self):
+	def detect_var_race (self):
 		print("^^^^^^START DETECT RACE^^^^^^\n")
 		#print("size: %s" %(len(self.variables)))
 		#cache stores the result of two events, i.e., isConcurrent_new_1(), True denotes concurrent
@@ -1575,6 +1317,7 @@ def startDebug(parsedResult, isRace, isChain):
 	scheduler.add_reg_and_resolve_constraint()
 	scheduler.add_file_constraint()
 	scheduler.fifo()
+	scheduler.diffQ()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
 	'''			
