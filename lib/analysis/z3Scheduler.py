@@ -58,7 +58,6 @@ class Report:
 		if not otherReport:
 			return False
 		return self.footprint==otherReport.footprint
-		pass
 
 	def toString (self, detail=False):
 		res=self.footprint+':'+self.pattern+'\n'
@@ -67,7 +66,6 @@ class Report:
 			res+='\n'+self.triple[i].toString()
 		#if detail:
 		return res
-		pass
 
 	def printout (self):
 		print '*******************This Triple object is:'
@@ -77,13 +75,13 @@ class Report:
 		printObj(self.rcd2)
 		print 'rcd3: '
 		printObj(self.rcd3)
+		#wensheng: There are some syntax errors here.
 		pass
 
 class Race:
 
 	#def __init__ (self, pattern, rcd1, rcd2''', chain1, chain2'''):
 	def __init__ (self, pattern, rcd1, rcd2):
-
 		self.pattern=pattern
 		self.tuple=[rcd1, rcd2]
 		self.footprint=self.tuple[0].cbLoc+' vs. '+self.tuple[1].cbLoc
@@ -98,7 +96,6 @@ class Race:
 		pass
 
 	def isEqual_bak (self, otherRace):
-
 		if not otherRace:
 			return False
 		#if self.footprint == otherRace.footprint:
@@ -106,7 +103,6 @@ class Race:
 		if (self.tuple[0].lineno == otherRace.tuple[1].lineno and self.tuple[1].lineno == otherRace[0].lineno) or (self.tuple[0].lineno == otherRace.tuple[0].lineno and self.tuple[1].lineno == otherRace[1].lineno):
 			return True
 		return False
-		pass
 
 	def toString (self, detail=False):
 
@@ -114,10 +110,9 @@ class Race:
 		for i in range(0, 2):
 			res+='\n'+self.tuple[i].toString()
 		return res
-		pass
 	
+	#wensheng: Syntax errors in this function.
 	def chainToString (self):
-	
 		print self.chain1
 		res = '======chain[1]=====\n'
 		for item in self.chain1:
@@ -129,7 +124,6 @@ class Race:
 			res += item + ' -> '
 		res += '\n'
 		return res
-		pass
 
 _fsPattern = {
 	"C": ["D", "R", "O", "S"],
