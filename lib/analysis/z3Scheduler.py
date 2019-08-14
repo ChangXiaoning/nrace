@@ -143,6 +143,7 @@ _fsPattern = {
 class Scheduler:
 
 	def __init__ (self, parsedResult):
+		print("Hello")
 		self.solver=z3.Solver()
 		self.grid=dict()
 		self.cbs=parsedResult['cbs']
@@ -154,14 +155,8 @@ class Scheduler:
 		#self.candidates = list()
 		self.races=list()
 		self.consNumber = 0
-		#for the matrix(m*n)
-		#case matrix[i][j] = 0: event i is concurrent with event j
-		#case matrix[i][j] = 1: event i happens before event j
-		#case matrix[i][j] = -1: event i happens after event j
-		self.matrix = None
-		asynIds=map(lambda x: int(x), self.cbs.keys())	
-		m = n  = max(asynIds) + 1
-		self.matrix = [[None for i in range(0, m)] for j in range(n)]
+		print("Op number: %s" %(len(self.records)))
+		print("Event num: %s" %(len(self.cbs)))
 		pass
 
 	def filterCbs (self):
@@ -233,6 +228,7 @@ class Scheduler:
 				#self.solver.add(self.grid[lineno]>0)
 		'''
 		#create order variable for resource accessing op
+		#print("debug-create: %s" %(len(self.records)))
 		for rcdLineno in self.records:
 			#skip register and resolve op because we have already create them above
 			if isinstance(self.records[rcdLineno], TraceParser.Reg_or_Resolve_Op):
@@ -240,7 +236,6 @@ class Scheduler:
 			self.grid[rcdLineno] = z3.Int('Instruction_for_%s' %(rcdLineno))
 			count += 1
 			#self.solver.add(self.grid[rcdLineno] > 0)
-		
 		self.order_variable_num = count
 
 		print("Variable number: %s\n" %(self.order_variable_num))
@@ -297,6 +292,7 @@ class Scheduler:
 		pass
 	
 	def add_atomicity_constraint (self):
+		count = 0
 		for cb in self.cbs.values():
 			if not hasattr(cb, 'start'):
 				continue
@@ -308,6 +304,7 @@ class Scheduler:
 			i = 0
 			j = i + 1
 			self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
+			count += 1
 			#print("1. Atomicity: %s == %s - 1" %(cb.start, cb.records[i]))
 			while i < len(cb.records) - 1 and j < len(cb.records):
 				#skip async file op and resolve op
@@ -315,6 +312,7 @@ class Scheduler:
 					j += 1
 				else:
 					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
+					count += 1
 					#print("2. Atomicity: %s == %s - 1" %(cb.records[i], cb.records[j]))
 					i = j
 					j += 1
@@ -328,10 +326,15 @@ class Scheduler:
 					last = i
 					break
 			self.solver.add(self.grid[cb.records[last]] == self.grid[cb.end] - 1)
+			count += 1
 			#print("3. Atomicity: %s == %s - 1" %(cb.records[last], cb.end))
-		
+		count = 0
+		print("debug-ato: cbs num %s " %(len(self.cbs)))
 		#2nd atomicity constraint
+		
 		for cbi in self.cbs.values():
+			#count += 1
+			#print("debug-ato: cbi num %s" %(count))
 			if not hasattr(cbi, 'start') or not hasattr(cbi, 'end'):
 				continue
 			for cbj in self.cbs.values():
@@ -339,13 +342,15 @@ class Scheduler:
 					continue
 				if not hasattr(cbj, 'start') or not hasattr(cbj, 'end'):
 					continue
-				self.solver.add(z3.Or(self.grid[cbi.end] < self.grid[cbj.start], self.grid[cbi.start] > self.grid[cbj.end]))
+				#self.solver.add(z3.Or(self.grid[cbi.end] < self.grid[cbj.start], self.grid[cbi.start] > self.grid[cbj.end]))
+				count += 1
+				print("debug-ato: %s" %(count))
 				#print("4. Atomicity: %s < %s or %s > %s" %(cbi.end, cbj.start, cbi.start, cbj.end))
-
+		
 		#3rd atomicity constraint:
 		#during debugging, find another atomicity (program) constraint:
 		#the global script "callback" must happen before all other callbacks
-
+		
 		global_start = self.cbs['1'].start
 		for cb in self.cbs.values():
 			if cb.asyncId == '1':
@@ -354,72 +359,8 @@ class Scheduler:
 				continue
 			self.solver.add(self.grid[global_start] < self.grid[cb.start])
 			#print("5. Atomicity: %s < %s" %(global_start, cb.start))
-		print("after atomicity: %s" %(self.check()))
-		pass
-
-	def addProgramAtomicityConstraint (self):
-		print("^^^^^^PROGRAM ATOMICITY^^^^^^")
-		count = 0
-		consName = 'Atomicity'	
-		for cb in self.cbs.values():
-			#print consName + ' for callback ' + cb.asyncId
-			#printObj(cb)
-
-			if len(cb.records) == 0:
-				'''
-				if hasattr(cb, 'start') and hasattr(cb, 'end'):
-					self.solver.add(self.grid[cb.start] == self.grid[cb.end] - 1)
-				'''
-				continue
-
-			#should skip the asynchronous file operations
-			i = 0
-			j = 0
-			while i < len(cb.records): 
-				if isinstance(self.records[cb.records[i]], TraceParser.FileAccessRecord) and self.records[cb.records[i]].isAsync ==True:
-					i += 1
-				else:
-					break
-
-			#if there is no file operations in cb, i stop at DataAccessRecord
-			#else i stops at FileAccessRecord
-			if i == 0:
-				self.solver.add(self.grid[cb.start] == self.grid[cb.records[i]] - 1)
-				count += 1
-				#print("Atomicity: %s == %s -1" %(cb.start, cb.records[i]))
-			'''
-			else:
-				self.solver.add(self.grid[cb.start] < self.grid[cb.records[i]])
-				print("Atomicity: %s < %s" %(cb.start, cb.records[i]))
-			'''
-			j = i + 1	
-			#print("1. i: %s, j: %s" %(i, j))
-			
-			while i < len(cb.records) - 1 and j < len(cb.records):
-				#print("2. i: %s, j: %s" %(i, j))
-				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True:
-					j += 1
-				else:
-					#self.printConstraint(consName, cb.instructions[i], cb.instructions[j])
-					#if cb.instructions[i] in self.grid and cb.instructions[j] in self.grid:
-					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
-					count += 1
-					#print("Atomicity: %s == %s -1" %(cb.records[i], cb.records[j]))
-					#self.consNumber += 1
-					#self.printConstraint(consName, cb.records[i], cb.records[j])
-					i = j
-					j += 1
-			
-			#printObj(self.records[len(cb.records) - 1])
-			'''
-			if isinstance(self.records[cb.records[len(cb.records) - 1]], TraceParser.DataAccessRecord) or isinstance(self.records[cb.records[len(cb.records) - 1]], TraceParser.FileAccessRecord) and self.records[cb.records[len(cb.records) - 1]].isAsync == False:
-				if hasattr(cb, 'end'):
-					self.solver.add(self.grid[cb.records[len(cb.records) - 1]] == self.grid[cb.end])
-			'''
-		#print("after atomicity: %s" %(self.check()))
-
-		self.atomicity_constraint_num = count
-		print("Atomicity constraint number: %s\n" %(self.atomicity_constraint_num))
+		
+		print("after atomicity: %s num: %s" %(self.check(), count))
 		pass
 	
 	def printConstraint (self, consName, lineno_1, lineno_2):
@@ -428,98 +369,7 @@ class Scheduler:
 
 	def printCbCons (self, consName, cb_1, cb_2):
 		print consName.upper() + ': ' + str(cb_1) + ' < ' + str(cb_2)
-		pass
-
-	def addRegisterandResolveConstraint_bak (self):
-		
-		print("^^^^^^REGISTER AND RESOLVE^^^^^^")
-
-		consName = 'RegisterandResolve'
-		for cb in self.cbs.values():	
-			if hasattr(cb, 'start'):
-				self.solver.add(self.grid[cb.register]<self.grid[cb.start])
-				#self.printConstraint(consName, cb.register, cb.start)
-				self.printCbCons(consName, cb.prior, cb.asyncId)
-		pass
-	
-	def save_in_matrix (self, num_1, num_2, result):
-		num_1 = int(num_1)
-		num_2 = int(num_2)
-		#num_1 is concurrent with num_2
-		if result == 0:
-			self.matrix[num_1][num_2] = 0
-			self.matrix[num_2][num_1] = 0
-		#num_1 happens before num_2
-		elif result == 1:
-			self.matrix[num_1][num_2] = 1
-			self.matrix[num_2][num_1] = -1
-		elif result == -1:
-			self.matrix[num_1][num_2] = -1
-			self.matrix[num_2][num_1] = 1
-		pass
-
-	def get_from_matrix (self, num_1, num_2):
-		num_1 = int(num_1)
-		num_2 = int(num_2)
-		return self.matrix[num_1][num_2]
-		pass
-
-	def addRegisterandResolveConstraint (self):
-		print("^^^^^REGISTER AND RESOLVE^^^^^^")
-		consName = 'Register'
-		self.register_number = 0
-		print("before register: %s" %(self.check()))
-		'''
-		for cb in self.cbs.values():
-			print(cb.asyncId)
-			printObj(cb)
-			
-		for cb in self.cbs.values():
-			if not hasattr(cb, 'start') or not hasattr(cb, 'postCbs'):
-				continue
-			for postCbList in cb.postCbs.values():
-				for postCb in postCbList:
-					if hasattr(self.cbs[postCb], 'start'):
-						#print("ADD %s < %s" %(cb.asyncId, self.cbs[postCb].asyncId))
-						#self.printConstraint(consName, cb.start, self.cbs[postCb].start)
-						self.solver.add(self.grid[cb.start] < self.grid[self.cbs[postCb].start])
-						self.register_number += 1
-		'''
-		for cb in self.cbs.values():
-			#printObj(cb)
-			if not hasattr(cb, 'start') or not hasattr(cb, 'prior') or cb.prior == None or cb.prior not in self.cbs or not hasattr(self.cbs[cb.prior], 'start'):
-				continue
-			self.solver.add(self.grid[self.cbs[cb.prior].start] < self.grid[cb.start])
-			self.save_in_matrix(cb.prior, cb.asyncId, 1)	
-			self.register_number += 1
-		print("Register number: %s\n" %(self.register_number))
-		print("after register: %s" %(self.check()))
-
-		pass
-
-	def add_reg_and_resolve_constraint_bak (self):
-		for cb in self.cbs.values():
-			for lineno in cb.records:
-				if not isinstance(self.records[lineno], TraceParser.Reg_or_Resolve_Op):
-					continue
-				if re.search('rr', lineno):
-					continue
-				#register = resolve - 1 for nextTick, immediate and timeout event
-				#register < resolve for other events
-				if self.records[lineno].resourceType in ['TickObject', 'Immediate', 'Timeout']:	
-					self.solver.add(self.grid[lineno] == self.grid[lineno + 'r'] - 1)
-					#print("1. r&r cons: %s == %s - 1" %(lineno, lineno + 'r'))
-				else:
-					self.solver.add(self.grid[lineno] < self.grid[lineno + 'r'])
-					#print("2. r&r cons: %s < %s" %(lineno, lineno + 'r'))
-				#resolve < start
-				asyncId = self.records[lineno].follower
-				cb = self.cbs[asyncId]
-				if hasattr(cb, 'start'):
-					self.solver.add(self.grid[lineno + 'r'] < self.grid[cb.start])
-					#print("3. r&r cons: %s < %s" %(lineno + 'r', cb.start))
-		print("after r&r: %s" %(self.check()))
-		pass
+		pass		
 
 	def add_reg_and_resolve_constraint (self):
 		for cb in self.cbs.values():
@@ -962,41 +812,29 @@ class Scheduler:
 					jEid = self.records[WList[j]].eid
 					res = None
 
-					#wierd: some eid does not exist in self.cbs, e.g., the cb '0'
 					if not jEid in self.cbs:
 						continue
 					if not hasattr(self.cbs[self.records[WList[j]].eid], 'start'):
 						continue
-
-					if self.get_from_matrix(iEid, jEid) == 0:
-						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
-						self.races.append(race)
-					elif self.get_from_matrix(iEid, jEid) == 1 or self.get_from_matrix(iEid, jEid) == -1:
-						continue
 					
-					elif self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start):
-						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
-						self.races.append(race)
-						self.save_in_matrix(iEid, jEid, 0)
-					
-					'''		
-					if iEid + '-' + jEid in cache:
-						res = cache[iEid + '-' + jEid]
-						continue
-					elif jEid + '-' + iEid in cache:
-						res = cache[jEid + '-' + iEid]
-						continue
+					res = None
+					tpl = [iEid, jEid]
+					tpl.sort()
+					smalle = tpl[0]
+					bige = tpl[1]
+					key = smalle + '-' + bige
+					if key in cache:
+						res = cache[key]
 					else:
-						#print("----------")
-						#print(iEid, jEid)
-						#print(self.cbs.keys())
-						res = self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start)
-						cache[iEid + '-' + jEid] = res
-					
+						starti = self.cbs[iEid].start
+						startj = self.cbs[jEid].start
+						res = self.isConcurrent_new_1(starti, startj)
+						cache[key] = res
+
 					if res:
-						race=Race('W_W', self.records[WList[i]], self.records[WList[j]])
+						race = Race('W_W', self.records[WList[i]], self.records[WList[j]])
 						self.races.append(race)
-				'''
+
 			#detect W race with R
 			for i in range(0, len(WList)):
 				if not self.records[WList[i]].eid in self.cbs:
@@ -1010,44 +848,37 @@ class Scheduler:
 					#print("j:")
 					#printObj(self.records[RList[j]])
 					#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
-					
+					'''	
 					if self.records[WList[i]].isDeclaredLocal or self.records[RList[j]].isDeclaredLocal:
 						if var not in fp_var_list:
 							fp_var_list.append(var)
 							continue
-					
+					'''
+					if not jEid in self.cbs:
+						continue
+					if not hasattr(self.cbs[self.records[WList[j]].eid], 'start'):
+						continue
 					iEid = self.records[WList[i]].eid
 					jEid = self.records[RList[j]].eid
 					res = None
 					
-					if not jEid in self.cbs:
-						continue
-					if not hasattr(self.cbs[self.records[RList[j]].eid], 'start'):
-						continue
-					
-					if self.get_from_matrix(iEid, jEid) == 0:
-						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
-						self.races.append(race)
-					elif self.get_from_matrix(iEid, jEid) == 1 or self.get_from_matrix(iEid, jEid) == -1:
-						continue
-					
-					elif self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start):
-						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
-						self.races.append(race)
-						self.save_in_matrix(iEid, jEid, 0)
-						
-					'''
-					if iEid + '-' + jEid in cache:
-						res = cache[iEid + '-' + jEid]
-					elif jEid + '-' + iEid in cache:
-						res = cache[jEid + '-' + iEid]
+					tpl = [iEid, jEid]
+					tpl.sort()
+					smalle = tpl[0]
+					bige = tpl[1]
+					key = smalle + '-' + bige
+					if key in cache:
+						res = cache[key]
 					else:
-						res = self.isConcurrent_new_1(self.cbs[iEid].start, self.cbs[jEid].start)
-						cache[iEid + '-' + jEid] = res
+						starti = self.cbs[iEid].start
+						startj = self.cbs[jEid].start
+						res = self.isConcurrent_new_1(starti, startj)
+						cache[key] = res
+
 					if res:
-						race=Race('W_R', self.records[WList[i]], self.records[RList[j]])
+						race = Race('W_R', self.records[WList[i]], self.records[RList[j]])
 						self.races.append(race)
-					'''
+				
 		print("Detect variable race in %s vars: \n" %(count - len(fp_var_list)))			
 		pass
 	
@@ -1304,6 +1135,7 @@ class Scheduler:
 
 def startDebug(parsedResult, isRace, isChain):
 	scheduler=Scheduler(parsedResult)
+	
 	scheduler.filterCbs()
 	scheduler.rm_sync_access_op()
 	
@@ -1314,24 +1146,24 @@ def startDebug(parsedResult, isRace, isChain):
 	#scheduler.addProgramAtomicityConstraint()
 	scheduler.add_atomicity_constraint()
 	#scheduler.addRegisterandResolveConstraint()
-	scheduler.add_reg_and_resolve_constraint()
-	scheduler.add_file_constraint()
-	scheduler.fifo()
-	scheduler.diffQ()
+	#scheduler.add_reg_and_resolve_constraint()
+	#scheduler.add_file_constraint()
+	#scheduler.fifo()
+	#scheduler.diffQ()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
-	'''			
+	'''		
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		scheduler.detectRace()
+		scheduler.detect_var_race()
 		scheduler.filter_fp()
 		#scheduler.addFsConstraint()
 		#scheduler.detectFileRace()
 		scheduler.mergeRace()
-		scheduler.pass_candidate()
+		#scheduler.pass_candidate()
 		scheduler.printRaces(isChain)
 	'''			
 	print '*******END DEBUG*******'

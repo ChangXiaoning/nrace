@@ -853,7 +853,7 @@ def processTraceFile (traceFile):
 	
 	result=dict()	
 	result['cbs']=cbCtx.cbs
-	print("debug-processtracefile: %s" %(print_obj(cbCtx.cbs['39'], ['records'])))
+	#print("debug-processtracefile: %s" %(print_obj(cbCtx.cbs['39'], ['records'])))
 	result['records']=cbCtx.records
 	result['vars']=cbCtx.vars
 	result['files'] = cbCtx.files
