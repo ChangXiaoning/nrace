@@ -33,8 +33,9 @@ def main():
 	'''
 	for fileName in parsedResult['files']:
 		print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
-	print(parsedResult['files'])
-	
+	#print(parsedResult['files'])
+	#print('278')
+	#print(parsedResult['cbs']['278'].records)
 	#print('after parse:\n')
 	#res = map(lambda x: int(x), parsedResult['cbs'].keys())
 	#res.sort()
@@ -43,7 +44,7 @@ def main():
 	#step 3: detect
 	print '*******BEGIN DEBUG*******'
 	#z3Detector.start_detect(parsedResult, isRace, isChain)
-	#z3Scheduler.startDebug(parsedResult, isRace, isChain)
+	z3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':

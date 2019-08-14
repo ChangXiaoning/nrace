@@ -191,6 +191,8 @@ class Callback:
 		pass
 
 	def addRecord (self, rcd):	
+		if rcd.lineno == '11758r':
+				print(print_obj(rcd, ['follower', 'prior', 'resourceType', 'lineno']))
 		self.records.append(rcd.lineno)
 		#because we use addRecord() to save Reg_or_Resolve instance, so it can have no attribute 'location'
 		if isinstance(rcd, Reg_or_Resolve_Op):
@@ -249,6 +251,27 @@ class CbStack:
 		self.cbForFile = list()
 		#save all register and resolve instances
 		self.rrdict = dict()
+		self.testsuit = dict()
+		self.test_case_count = 0
+		self.cb_cache = list()
+		self.script_count = 1
+		pass
+	
+	def get_script_count (self):
+		res = self.script_count
+		self.script_count += 1
+		return str(res) + '-'
+		pass
+
+	def add_in_cb_cache (self, asyncId):
+		self.cb_cache.append(asyncId)
+		pass
+
+	def identify_test_case (self):
+		case_id = self.test_case_count
+		self.testsuit[case_id] = self.cb_cache
+		self.cb_cache = list()
+		self.test_case_count += 1
 		pass
 	
 	def save_register_resolve (self, rr):
@@ -301,6 +324,8 @@ class CbStack:
 			'''
 		#3.save cb in initialized order to associate file operation with its cb
 		self.cbForFile.append(cb.asyncId)
+		#4.save the cb asyncId into the cb_cache to identify the test case
+		self.add_in_cb_cache(cb.asyncId)
 		pass
 	
 	def getNewestCb (self):
@@ -574,6 +599,7 @@ def processLine (line):
 	global fAccessType
 	global lastManualFile
 	global lastfunName
+	global lastfsresolve
 	#global lastRegister
 
 	lineno+=1
@@ -598,8 +624,13 @@ def processLine (line):
 		if not LogEntryType.has_key(itemEntryType):
 			return
 		itemEntryTypeName=LogEntryType[itemEntryType]
+		test_case_key = 'GoodBye'
 		if VarAccessType.has_key(itemEntryTypeName):
 			record=DataAccessRecord(lineno, itemEntryTypeName, VarAccessType[itemEntryTypeName], item[2], item[3], cbCtx.top(), item[1])
+			#identify test case
+			if itemEntryTypeName == 'WRITE' and item[3] == test_case_key:
+				cbCtx.identify_test_case()
+			
 			#check if there is a file operation
 
 			'''
@@ -680,16 +711,21 @@ def processLine (line):
 				#if lineno == 1368:
 					#print(print_obj(record, ['lineno', 'cb', 'isAsync']))
 				#associate the generated Reg_or_Resolve_Op instance with the file operation
+				record.resolve = lastfsresolve
 				associatedCb = cbCtx.cbs[record.cb]
+				'''
 				register = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'r')
 				resolve = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'rr')
 				record.register = register.lineno
 				record.resolve = resolve.lineno
+				'''
 				#if lineno == 1368:
 					#print(print_obj(record, ['lineno', 'cb', 'isAsync', 'register', 'resolve', 'eid']))
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
+			if cb.asyncId == '11758':
+				print(print_obj(cb, ['asyncId', 'prior', 'lineno']))
 			'''
 			if lastManualFile:
 				cbCtx.records[lastManualFile].cb = item[1]
@@ -699,6 +735,8 @@ def processLine (line):
 			register = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'r')
 			#if item[2] == 'TickObject' or item[2] == 'Immediate' or item[2] == 'Timeout':
 			resolve = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'rr')
+			if cb.resourceType in ['FSEVENTWRAP', 'FSREQCALLBACK']:
+				lastfsresolve = resolve.lineno
 			#print(cbCtx.cbs)
 			#print(cbCtx.stack)
 			#there is a cb, whose asyncId is 0
@@ -727,12 +765,21 @@ def processLine (line):
 		elif itemEntryType==LogEntryType["ASYNC_PROMISERESOLVE"]:	
 			cb=Callback(item[1], item[2], 'RESOLVE', 'resolve', lineno)
 			cbCtx.addCb(cb)
+			register = Reg_or_Resolve_Op(item[2], item[1], 'RESOLVE', str(lineno) + 'r')
+			resolve = Reg_or_Resolve_Op(item[2], item[1], 'RESOLVE', str(lineno) + 'rr')
+			cbCtx.cbs[item[2]].addRecord(register)
+			cbCtx.cbs[item[2]].addRecord(resolve)
+			cbCtx.save_register_resolve(register)
+			cbCtx.save_register_resolve(resolve)
+			if cb.asyncId == '11758':
+				print(print_obj(cb, ['asyncId', 'prior', 'lineno']))
 		elif itemEntryType==LogEntryType["SCRIPT_ENTER"]:
 			currentSourceFile=item[3]
 			#register: assume asyncId='0', prior=None, hbType='register', resourceType='GLOBALCB' but no constraint
 			#note: asyncId is '1' rather than '0' in order to be the same with the prior cb of callbacks the glocal script registers
 			#record=HappensBeforeRecord (lineno, '0', None, 'register', 'GLOBALCB')
-			cb=Callback('1', None, 'GLOBALCB', 'register', lineno)
+			asyncId = cbCtx.get_script_count()
+			cb=Callback(asyncId, None, 'GLOBALCB', 'register', lineno)
 			cbCtx.addCb(cb)	
 			#before: assume eid='0'
 			#cbCtx.enter('0')
@@ -800,14 +847,18 @@ def processLine (line):
 			#print(cbCtx.top() in cbCtx.cbs)
 			if cbCtx.top() in cbCtx.cbs or record.eid != '0':
 				cbCtx.addFileRecord(record)
+				'''
 				if hasattr(record, 'register'):	
 					cbCtx.cbs[cbCtx.top()].addRecord(register)
 					cbCtx.save_register_resolve(register)
+				'''
 				cbCtx.cbs[cbCtx.top()].addRecord(record)
+				'''
 				if hasattr(record, 'resolve'):
 					cbCtx.cbs[cbCtx.top()].addRecord(resolve)
 					cbCtx.save_register_resolve(resolve)
-	pass
+				'''
+	pass		
 
 def searchFile (directory, filePrefix):
 	#search all the files that have the @filePrefix in the dir @directory
@@ -857,6 +908,13 @@ def processTraceFile (traceFile):
 	result['records']=cbCtx.records
 	result['vars']=cbCtx.vars
 	result['files'] = cbCtx.files
+	result['testsuit'] = cbCtx.testsuit
+	'''
+	print('debug-tracefile: ')
+	for testcase in cbCtx.testsuit.values():
+		print(testcase)
+		print('\n')
+	'''
 	print("*******COMPLETE PARSE TRACE*****")
 	return result
 	pass
@@ -890,5 +948,6 @@ _fileName = None
 fAccessType = None
 lastManualFile = None
 lastfunName = None
+lastfsresolve = None
 #in order to associate  manually generated register and resolve operation with their async file operation
 #lastRegister = None

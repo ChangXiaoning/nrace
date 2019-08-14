@@ -151,6 +151,7 @@ class Scheduler:
 		self.records=parsedResult['records']
 		self.variables=parsedResult['vars']
 		self.files = parsedResult['files']
+		self.testsuit = parsedResult['testsuit']
 		self.reports=list()
 		#self.candidates = list()
 		self.races=list()
@@ -203,7 +204,7 @@ class Scheduler:
 	def createOrderVariables (self):
 		print('^^^^^^CREATE ORDER VARIABLE^^^^^^')
 		count = 0
-		
+		#print("debug-create: 11758 %s" %('11758' in self.cbs))	
 		for cb in self.cbs.values():	
 			if hasattr(cb, 'start'):
 				self.grid[cb.start]=z3.Int('Instruction_for_%s' %(cb.start))
@@ -300,6 +301,8 @@ class Scheduler:
 				continue
 			#print("\n-----cb.records:")
 			#print(cb.records)
+			#print("=====debug-ato: asyncId %s" %(cb.asyncId))
+			#print(cb.records)
 			#1st atomicity cons: every callback cannot be interrupted
 			i = 0
 			j = i + 1
@@ -311,6 +314,8 @@ class Scheduler:
 				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True or type(cb.records[j]) == str and re.search('rr', cb.records[j]):
 					j += 1
 				else:
+					#print("debug-ato: i %s" %(cb.records[i] in self.grid))
+					#print("debug-ato: j %s" %(cb.records[j] in self.grid))
 					self.solver.add(self.grid[cb.records[i]] == self.grid[cb.records[j]] - 1)
 					count += 1
 					#print("2. Atomicity: %s == %s - 1" %(cb.records[i], cb.records[j]))
@@ -328,38 +333,30 @@ class Scheduler:
 			self.solver.add(self.grid[cb.records[last]] == self.grid[cb.end] - 1)
 			count += 1
 			#print("3. Atomicity: %s == %s - 1" %(cb.records[last], cb.end))
-		count = 0
-		print("debug-ato: cbs num %s " %(len(self.cbs)))
-		#2nd atomicity constraint
+		#count = 0
+		#print("debug-ato: cbs num %s " %(len(self.cbs)))
 		
-		for cbi in self.cbs.values():
+		#2nd atomicity constraint
+	
+		asyncIds = self.cbs.keys()
+		cb_num = len(asyncIds)
+		for i in range(0, cb_num - 1):
 			#count += 1
 			#print("debug-ato: cbi num %s" %(count))
+			cbi = self.cbs[asyncIds[i]]
 			if not hasattr(cbi, 'start') or not hasattr(cbi, 'end'):
 				continue
-			for cbj in self.cbs.values():
-				if cbi == cbj:
+			for j in range(i + 1, cb_num):
+				if i == j:
 					continue
+				cbj = self.cbs[asyncIds[j]]
 				if not hasattr(cbj, 'start') or not hasattr(cbj, 'end'):
 					continue
 				#self.solver.add(z3.Or(self.grid[cbi.end] < self.grid[cbj.start], self.grid[cbi.start] > self.grid[cbj.end]))
 				count += 1
-				print("debug-ato: %s" %(count))
+				#print("debug-ato: %s" %(count))
 				#print("4. Atomicity: %s < %s or %s > %s" %(cbi.end, cbj.start, cbi.start, cbj.end))
-		
-		#3rd atomicity constraint:
-		#during debugging, find another atomicity (program) constraint:
-		#the global script "callback" must happen before all other callbacks
-		
-		global_start = self.cbs['1'].start
-		for cb in self.cbs.values():
-			if cb.asyncId == '1':
-				continue
-			if not hasattr(cb, 'start'):
-				continue
-			self.solver.add(self.grid[global_start] < self.grid[cb.start])
-			#print("5. Atomicity: %s < %s" %(global_start, cb.start))
-		
+				
 		print("after atomicity: %s num: %s" %(self.check(), count))
 		pass
 	
@@ -372,6 +369,7 @@ class Scheduler:
 		pass		
 
 	def add_reg_and_resolve_constraint (self):
+		count = 0
 		for cb in self.cbs.values():
 			if not hasattr(cb, 'start'):
 				continue
@@ -381,15 +379,19 @@ class Scheduler:
 			#1st cons: register = resolve - 1  for nextTick, immediate, promise event. 'RESOLVE' is the promise event
 			if cb.resourceType in ['TickObject', 'RESOLVE', 'Immediate']:
 				self.solver.add(self.grid[registerLine] == self.grid[resolveLine] - 1)
+				count += 1
 			else:
 				self.solver.add(self.grid[registerLine] < self.grid[resolveLine])
+				count += 1
 			#2nd cons: resolve < start
 			self.solver.add(self.grid[resolveLine] < self.grid[start])
-		print("after r&r: %s" %(self.check()))
+			count += 1
+		print("after r&r: %s num: %s" %(self.check(), count))
 		pass
 	
 	def add_file_constraint (self):
-		
+		count = 0
+		async_fs_num = 0
 		for cb in self.cbs.values():
 			rcdLinenos = cb.records
 			for lineno in rcdLinenos:
@@ -400,57 +402,63 @@ class Scheduler:
 					#constraint 1: asynchronous file operation happens after the register of cb
 					#print("register: %s"  %(rcd.register))
 					#print(rcd.register in self.grid)
-					self.solver.add(self.grid[rcd.register] < self.grid[rcd.lineno])
+					async_fs_num += 1
+					resolve = rcd.resolve
+					register = resolve[:-1]
+					self.solver.add(self.grid[register] < self.grid[rcd.lineno])
+					count += 1
 					#print("1. file: %s < %s" %(rcd.register, rcd.lineno))	
 					#constraint 2: asynchronous file operation happens before the resolve of callback
-					self.solver.add(self.grid[rcd.lineno] < self.grid[rcd.resolve])
+					self.solver.add(self.grid[rcd.lineno] < self.grid[resolve])
+					count += 1
 					#print("2. file: %s < %s" %(rcd.lineno, rcd.resolve))	
-		print("after file_cons: %s" %(self.check()))
+		print("after file_cons: %s cons_num: %s async_fs_num: %s" %(self.check(), count, async_fs_num))
 		pass
 	
 	def fifo (self):
-		for cbi in self.cbs.values():
-			if cbi.asyncId == '1':
-				continue
-			if not hasattr(cbi, 'start'):
-				continue
-			triggeri = str(cbi.register) + 'rr'
-			#print("debug-fifo: triggeri %s" %(triggeri in self.grid))
-			for cbj in self.cbs.values():
-				if cbj.asyncId == '1':
+		count = 0
+		for testcase in self.testsuit.values():
+			cb_num = len(testcase)
+			for i in range(0, cb_num - 1):
+				cbi = self.cbs[testcase[i]]
+				if not hasattr(cbi, 'start'):
 					continue
-				if cbi == cbj:
-					continue
-				if not hasattr(cbj, 'start'):
-					continue
-				triggerj = str(cbj.register) + 'rr'
-				#print("debug-fifo: triggerj %s" %(triggerj in self.grid))
-				self.solver.add(z3.Or(z3.And(self.grid[triggeri] < self.grid[triggerj], self.grid[cbi.start] < self.grid[cbj.start]), z3.And(self.grid[triggeri] > self.grid[triggerj], self.grid[cbi.start] > self.grid[cbj.start])))
-				#print("fifo: %s < %s and %s < %s or %s > %s and %s > %s" %(triggeri, triggerj, cbi.start, cbj.start, triggeri, triggerj, cbi.start, cbj.start))
-		
-		print("after fifo: %s" %(self.check()))
+				triggeri = str(cbi.register) + 'rr'
+				for j in range(i+1, cb_num):
+					cbj = self.cbs[testcase[j]]
+					if cbj.priority != cbi.priority:
+						continue
+					if not hasattr(cbj, 'start'):
+						continue
+					triggerj = str(cbj.register) + 'rr'
+					self.solver.add(z3.Or(z3.And(self.grid[triggeri] < self.grid[triggerj], self.grid[cbi.start] < self.grid[cbj.start]), z3.And(self.grid[triggeri] > self.grid[triggerj], self.grid[cbi.start] > self.grid[cbj.start])))
+					count += 1
+		print("after fifo: %s num: %s" %(self.check(), count))
 		pass
 
 	def diffQ (self):
-		for cbi in self.cbs.values():
-			if cbi.asyncId == '1':
-				continue
-			if cbi.priority != 1:
-				continue
-			if not hasattr(cbi, 'start'):
-				continue
-			triggeri = str(cbi.register) + 'rr'
-			starti = cbi.start
-			for cbj in self.cbs.values():
-				if cbj.asyncId == '1':
-					continue
-				if cbi.priority == 1:
+		count = 0
+		for testcase in self.testsuit.values():
+			cb_num = len(testcase)
+			for i in range(0, cb_num - 1):
+				cbi = self.cbs[testcase[i]]
+				if cbi.priority != 1:
 					continue
 				if not hasattr(cbi, 'start'):
 					continue
-				startj = cbj.start
-				self.solver.add(z3.Implies(self.grid[triggeri] < self.grid[startj], self.grid[starti] < self.grid[startj]))
-		print("after diffQ: %s" %(self.check()))
+				triggeri = str(cbi.register) + 'rr'
+				starti = cbi.start
+				for j in range(i+1, cb_num):
+					cbj = self.cbs[testcase[j]]
+					if cbj.priority != 1:
+						continue
+					if not hasattr(cbj, 'start'):
+						continue
+					triggerj = str(cbj.register) + 'rr'
+					startj = cbj.start
+					count += 1
+					self.solver.add(z3.Implies(self.grid[triggeri] < self.grid[startj], self.grid[starti] < self.grid[startj]))	
+		print("after diffQ: %s num: %s" %(self.check(), count))
 		pass
 
 		'''
@@ -1146,10 +1154,10 @@ def startDebug(parsedResult, isRace, isChain):
 	#scheduler.addProgramAtomicityConstraint()
 	scheduler.add_atomicity_constraint()
 	#scheduler.addRegisterandResolveConstraint()
-	#scheduler.add_reg_and_resolve_constraint()
-	#scheduler.add_file_constraint()
-	#scheduler.fifo()
-	#scheduler.diffQ()
+	scheduler.add_reg_and_resolve_constraint()
+	scheduler.add_file_constraint()
+	scheduler.fifo()
+	scheduler.diffQ()
 	#scheduler.addPriorityConstraint()
 	#scheduler.addFsConstraint()
 	'''		
