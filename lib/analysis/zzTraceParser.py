@@ -1,4 +1,3 @@
-from __future__ import print_function
 import json
 import os
 import sys
@@ -76,8 +75,7 @@ class DataAccessOp:
         self.accessVar = None
         pass
 
-
-class FileAccessOp (object):
+class FileAccessOp:
     def __init__(self):
         self.lineno = None
         self.entryType = None
@@ -85,7 +83,6 @@ class FileAccessOp (object):
         self.accessFile = None
         self.isAsync = None
         pass
-
 
 def processTraceFile(traceFile):
 	result = TraceParser.processTraceFile(traceFile)
@@ -104,7 +101,7 @@ def processTraceFile(traceFile):
 		cbNum = len(testcase)
 		print('Callback numbers: ' + str(cbNum))
 
-        for i in range(0, cbNum):
+		for i in range(0, cbNum):
 			cb = cbs[testcase[i]]
 
 			print(len(cb.records))
