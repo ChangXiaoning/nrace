@@ -99,12 +99,9 @@ def processTraceFile(traceFile):
 		traces.append(trace)
 
 		cbNum = len(testcase)
-		print('Callback numbers: ' + str(cbNum))
 
 		for i in range(0, cbNum):
 			cb = cbs[testcase[i]]
-
-			print(len(cb.records))
 
 			if len(cb.records) == 0:
 				# do not know why
@@ -155,7 +152,7 @@ def processTraceFile(traceFile):
 							trace.ioActions.append(ioAction)
 						except KeyError:
 							# Do not know why, the resolve does not exit.
-							print(record.resolve)
+							print('Unrecongnized resolve: ' + record.resolve)
 
 				elif isinstance(record, TraceParser.Reg_or_Resolve_Op):
 					rLineno = record.lineno
