@@ -96,22 +96,29 @@ def processTraceFile(traceFile):
 
 	lineNo2Ops = dict()
 
+	traces = list()
 	for testcase in testsuit.values():
 		trace = Trace()
+		traces.append(trace)
 
 		cbNum = len(testcase)
-        for i in range(0, cbNum - 1):
+		print('Callback numbers: ' + str(cbNum))
+
+        for i in range(0, cbNum):
 			cb = cbs[testcase[i]]
+
+			print(len(cb.records))
+
+			if len(cb.records) == 0:
+				# do not know why
+				continue
+
 			event = Event()
 			event.id = cb.asyncId
 			event.priority = TraceParser.getPriority(cb.resourceType)
 			if hasattr(cb, 'resolve'):
 				event.resolve = lineNo2Ops[cb.resolve]
 			trace.events.append(event)
-
-			if len(cb.records) == 0:
-				# do not know why
-				continue
 
 			rcdList = cb.records
 			for j in range(0, len(rcdList) - 1):
@@ -172,5 +179,5 @@ def processTraceFile(traceFile):
 						registerOp.resourceType = record.resourceType
 
 						lineNo2Ops[record.lineno] = registerOp
-	exit
-	return result
+		
+	return traces

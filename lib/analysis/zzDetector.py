@@ -21,7 +21,13 @@ def main():
 
 	#step 1: parse record into object
 	print '*******BEGIN PARSE TRACE FILE*******'
-	parsedResult = zzTraceParser.processTraceFile(traceFile)
+	traces = zzTraceParser.processTraceFile(traceFile)
+
+	print('Test cases: ' + str(len(traces)))
+	for i in range(0, len(traces)):
+		trace = traces[i]
+		print('Trace ' + str(i))
+		print ('Event: ' + str(len(trace.events)))
 
 	print '*******BEGIN DEBUG*******'
 	#zzz3Scheduler.startDebug(parsedResult, isRace, isChain)
