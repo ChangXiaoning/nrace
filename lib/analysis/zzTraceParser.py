@@ -149,7 +149,7 @@ def processTraceFile(traceFile):
 							ioAction.resolveOp = resOp
 							trace.ioActions.append(ioAction)
 						except KeyError:
-							# Do not know why, there is a error in the trace.
+							# Do not know why, the resolve does not exit.
 							print(record.resolve)
 
 				elif isinstance(record, TraceParser.Reg_or_Resolve_Op):
@@ -162,9 +162,6 @@ def processTraceFile(traceFile):
 						resolveOp.resourceType = record.resourceType
 
 						lineNo2Ops[record.lineno] = resolveOp
-						if rLineno == '27497rr':
-							print("Define 27497rr...")
-							exit
 
 					else: # registration operation
 						registerOp = RegisterOp()
