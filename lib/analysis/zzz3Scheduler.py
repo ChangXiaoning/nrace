@@ -22,6 +22,7 @@ solver = z3.Solver()
 vars = list()
 op2Var = dict()
 
+
 def buildMhp(trace):
     print('Building must-happen-before...')
     start = time.time()
@@ -39,7 +40,7 @@ def buildMhp(trace):
         io = trace.ioActions[i]
         varIO = z3.Int('var-' + str(len(vars)))
         vars.append(varIO)
-        op2Var[io.fileAccessOP] = varIO
+        op2Var[io.fileAccessOp] = varIO
         solver.add(varIO > 0)
 
         varResolve = z3.Int('var-' + str(len(vars)))
@@ -63,7 +64,8 @@ def buildMhp(trace):
         for j in range(i + 1, len(trace.events)):
             cbi = trace.events[i]
             cbj = trace.events[j]
-            solver.add(z3.Or(op2Var[cbi.getEnd()] < op2Var[cbj.getStart()], op2Var[cbi.getStart()] > op2Var[cbj.getEnd()]))
+            solver.add(z3.Or(op2Var[cbi.getEnd()] < op2Var[cbj.getStart(
+            )], op2Var[cbi.getStart()] > op2Var[cbj.getEnd()]))
 
     # trigger-start
     for i in range(0, len(trace.events)):
@@ -75,7 +77,8 @@ def buildMhp(trace):
     # async ios
     for i in range(0, len(trace.ioActions)):
         io = trace.ioActions[i]
-        solver.add(z3.And(op2Var[io.registerOp] < op2Var[io.fileAccessOP], op2Var[io.fileAccessOP] < op2Var[io.resolveOp]))   
+        solver.add(z3.And(op2Var[io.registerOp] < op2Var[io.fileAccessOp],
+                          op2Var[io.fileAccessOp] < op2Var[io.resolveOp]))
 
     # fifo, different priority
     for i in range(1, len(trace.events)-1):
@@ -120,4 +123,101 @@ def buildMhp(trace):
     interval = end - start
     print('Solve constraints: ' + str(round(interval)) + 's')
 
+    pass
+
+def isConflictOnVariable(op1, op2):
+    if op1.accessVar == op2.accessVar:
+        if op1.accessType == 'W' or op2.accessType == 'R':
+            return True
+    return False
+
+def isConflictOnFile(op1, op2):
+    _fsPattern = {"C": ["D", "R", "O", "S"],
+                  "D": ["C", "R", "W", "O", "X", "S"],
+                  "R": ["C", "D", "W"],
+                  "W": ["D", "R", "X"],
+                  "O": ["C", "D", "X"],
+                  "X": ["D", "O", "W"],
+                  "S": ["C", "D"]
+                  }
+    if op1.accessFile == op2.accessFile and op1.accessType in _fsPattern[op2.accessType]:
+        return True
+    return False
+
+def isConcurrent(op1, op2):
+    solver.push()
+    solver.add(op2Var[op1] < op2Var[op2])
+    res = solver.check()
+    solver.pop()
+    if res == z3.sat:
+        solver.push()
+        solver.add(op2Var[op1] > op2Var[op2])
+        res = solver.check()
+        solver.pop()
+        if res == z3.sat:
+            return True
+    return False
+
+def isEventConcurrent(ev1, ev2):
+    op1 = ev1.ops[1]
+    op2 = ev2.ops[1]
+    return isConcurrent(op1, op2)
+
+def isConflict(op1, op2):
+    if isinstance(op1, zzTraceParser.DataAccessOp) and isinstance(op2, zzTraceParser.DataAccessOp):
+        if isConflictOnVariable(op1, op2):
+            return True
+    if isinstance(op1, zzTraceParser.FileAccessOp) and isinstance(op2, zzTraceParser.FileAccessOp):
+        if isConflictOnFile(op1, op2):
+            return True
+    return False
+
+def isEventConflict(ev1, ev2):
+    for op1 in ev1.ops:
+        for op2 in ev2.ops:
+            if isConflict(op1, op2):
+                return True
+    return False
+
+def isRace(op1, op2):
+    if isConflict(op1, op2) and isConcurrent(op1, op2):
+        print('A race detected!')
+        return True
+    return False
+
+def isEventRace(ev1, ev2):
+    if isEventConflict(ev1, ev2) and isEventConcurrent(ev1, ev2):
+        return True
+    return False
+
+def isEventvsIORace(ev, io):
+    for op in ev.ops:
+        if isRace(op, io.fileAccessOp):
+            return True
+    return False
+
+def isIOvsIORace(io1, io2):
+    return isRace(io1.fileAccessOp, io2.fileAccessOp)
+
+def detectRace(trace):
+
+    buildMhp(trace)
+
+    raceCount = 0
+    for i in range(0, len(trace.events)-1):
+        for j in range(1, len(trace.events)):
+            if isEventRace(trace.events[i], trace.events[j]):
+                raceCount += 1
+    
+    for i in range(0, len(trace.ioActions)-1):
+        for j in range(1, len(trace.ioActions)):
+            if isIOvsIORace(trace.ioActions[i], trace.ioActions[j]):
+                raceCount += 1
+
+    for i in range(0, len(trace.events)):
+        for j in range(0, len(trace.ioActions)):
+            if isEventvsIORace(trace.events[i], trace.ioActions[j]):
+                raceCount += 1
+
+    print('We find some races: ' + str(raceCount))
     pass

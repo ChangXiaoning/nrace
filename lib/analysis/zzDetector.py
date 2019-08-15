@@ -29,7 +29,7 @@ def main():
 		print('Trace ' + str(i))
 		print ('Event: ' + str(len(trace.events)))
 		
-		zzz3Scheduler.buildMhp(trace)
+		zzz3Scheduler.detectRace(trace)
 
 	print '*******BEGIN DEBUG*******'
 	#zzz3Scheduler.startDebug(parsedResult, isRace, isChain)

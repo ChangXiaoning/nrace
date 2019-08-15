@@ -33,7 +33,7 @@ class Event:
 class IOAction:
     def __init__(self):
         self.registerOp = None
-        self.fileAccessOP = None
+        self.fileAccessOp = None
         self.resolveOp = None
         pass
 
@@ -59,7 +59,6 @@ class DataAccessOp:
         self.accessType = None
         self.accessVar = None
         pass
-
 
 class FileAccessOp:
     def __init__(self):
@@ -135,7 +134,7 @@ def processTraceFile(traceFile):
 
                             ioAction = IOAction()
                             ioAction.registerOp = regOp
-                            ioAction.fileAccessOP = faOp
+                            ioAction.fileAccessOp = faOp
                             ioAction.resolveOp = resOp
                             event.ops.remove(faOp)
                             event.ops.remove(resOp)
