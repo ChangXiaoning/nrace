@@ -22,27 +22,12 @@ def main():
 		isChain = False
 	#step 1: parse record into object
 	print '*******BEGIN PARSE TRACE FILE*******'
-	parsedResult = TraceParser.processTraceFile(traceFile)
-	'''		
-	print(parsedResult)
-	for rcd in parsedResult['files'].values():
-		if isinstance(rcd, TraceParser.FileAccessRecord):
-			print(print_obj(rcd, ['lineno', 'entryType', 'accessType', 'resource', 'ref', 'name', 'eid', 'location', 'isAsync']))
-	'''
-	for fileName in parsedResult['files']:
-		print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
-	#print(parsedResult['files'])
-	#print('278')
-	#print(parsedResult['cbs']['278'].records)
-	#print('after parse:\n')
-	#res = map(lambda x: int(x), parsedResult['cbs'].keys())
-	#res.sort()
-	#print(res)
-	#print('size of vars: %s' %(len(parsedResult)))
+	parsedResult = zzTraceParser.processTraceFile(traceFile)
+
 	#step 3: detect
 	print '*******BEGIN DEBUG*******'
 	#z3Detector.start_detect(parsedResult, isRace, isChain)
-	zzz3Scheduler.startDebug(parsedResult, isRace, isChain)
+	zzz3Scheduler.startDetect(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':

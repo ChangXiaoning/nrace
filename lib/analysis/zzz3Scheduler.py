@@ -1135,7 +1135,7 @@ class Scheduler:
 				self.races.pop(i)
 		pass
 
-def startDebug(parsedResult, isRace, isChain):
+def startDetect(parsedResult, isRace, isChain):
 	scheduler=Scheduler(parsedResult)
 	
 	scheduler.filterCbs()
