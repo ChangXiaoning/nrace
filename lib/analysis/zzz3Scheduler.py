@@ -22,14 +22,15 @@ solver = z3.Solver()
 vars = list()
 op2Var = dict()
 
+
 def buildMhp(trace):
     print('Building must-happen-before...')
     start = time.time()
     # Initialize z3 vars
     for i in range(0, len(trace.events)):
-        cb = trace.events[i]
-        for j in range(0, len(cb.ops)):
-            op = cb.ops[j]
+        event = trace.events[i]
+        for j in range(0, len(event.ops)):
+            op = event.ops[j]
             var = z3.Int('var-' + str(len(vars)))
             vars.append(var)
             op2Var[op] = var
@@ -51,10 +52,10 @@ def buildMhp(trace):
 
     # atomicity
     for i in range(0, len(trace.events)):
-        cb = trace.events[i]
-        for j in range(0, len(cb.ops)-1):
-            op1 = cb.ops[j]
-            op2 = cb.ops[j + 1]
+        event = trace.events[i]
+        for j in range(0, len(event.ops)-1):
+            op1 = event.ops[j]
+            op2 = event.ops[j + 1]
             varOp1 = op2Var[op1]
             varOp2 = op2Var[op2]
             solver.add(varOp1 + 1 == varOp2)
@@ -63,8 +64,7 @@ def buildMhp(trace):
         for j in range(i + 1, len(trace.events)):
             cbi = trace.events[i]
             cbj = trace.events[j]
-            solver.add(z3.Or(op2Var[cbi.getEnd()] < op2Var[cbj.getStart(
-            )], op2Var[cbi.getStart()] < op2Var[cbj.getEnd()]))
+            solver.add(z3.Or(op2Var[cbi.getEnd()] < op2Var[cbj.getStart()], op2Var[cbi.getStart()] > op2Var[cbj.getEnd()]))
 
     # trigger-start
     for i in range(0, len(trace.events)):
