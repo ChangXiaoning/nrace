@@ -4,6 +4,7 @@ import re
 import TraceParser
 import Logging
 import pprint
+import time
 
 logger=Logging.logger
 #print_obj = TraceParser.print_obj
@@ -140,6 +141,7 @@ class Scheduler:
 	def __init__ (self, parsedResult):
 		print("Hello")
 		self.solver=z3.Solver()
+		self.solver.set('timeout', 200)
 		self.grid=dict()
 		self.cbs=parsedResult['cbs']
 		#print("debug-new scheduler: %s" %(print_obj(self.cbs['39'], ['records'])))
@@ -150,11 +152,19 @@ class Scheduler:
 		self.reports=list()
 		#self.candidates = list()
 		self.races=list()
+		self.racy_event_pair_cache = list()
 		self.consNumber = 0
 		print("Op number: %s" %(len(self.records)))
 		print("Event num: %s" %(len(self.cbs)))
 		pass
-
+	
+	def empty_constraints (self):
+		#self.solver.reset()
+		self.solver = None
+		self.solver = z3.Solver()
+		self.solver.set('timeout', 200)
+		pass
+		
 	def filterCbs (self):
 		cbs=self.cbs
 		#print cbs
@@ -287,9 +297,13 @@ class Scheduler:
 			#print('\n')
 		pass
 	
-	def add_atomicity_constraint (self):
+	def add_atomicity_constraint (self, consider = None):
 		count = 0
+		start = time.time()
 		for cb in self.cbs.values():
+			#deal with a single test case
+			if consider != None and cb.asyncId not in consider:
+				continue
 			if not hasattr(cb, 'start'):
 				continue
 			if len(cb.records) == 0:
@@ -338,21 +352,28 @@ class Scheduler:
 		for i in range(0, cb_num - 1):
 			#count += 1
 			#print("debug-ato: cbi num %s" %(count))
+			#deal with a single test case 
+			if consider != None and asyncIds[i] not in consider:
+				continue
 			cbi = self.cbs[asyncIds[i]]
 			if not hasattr(cbi, 'start') or not hasattr(cbi, 'end'):
 				continue
 			for j in range(i + 1, cb_num):
+				#deal with a single test case 
+				if consider != None and asyncIds[j] not in consider:
+					continue
 				if i == j:
 					continue
 				cbj = self.cbs[asyncIds[j]]
 				if not hasattr(cbj, 'start') or not hasattr(cbj, 'end'):
 					continue
-				#self.solver.add(z3.Or(self.grid[cbi.end] < self.grid[cbj.start], self.grid[cbi.start] > self.grid[cbj.end]))
+				self.solver.add(z3.Or(self.grid[cbi.end] < self.grid[cbj.start], self.grid[cbi.start] > self.grid[cbj.end]))
 				count += 1
 				#print("debug-ato: %s" %(count))
 				#print("4. Atomicity: %s < %s or %s > %s" %(cbi.end, cbj.start, cbi.start, cbj.end))
-				
-		print("after atomicity: %s num: %s" %(self.check(), count))
+		end = time.time()
+		interval = str(round(end - start))
+		print("after atomicity: %s, num: %s, time: %s" %(self.check(), count, interval))
 		pass
 	
 	def printConstraint (self, consName, lineno_1, lineno_2):
@@ -363,9 +384,13 @@ class Scheduler:
 		print consName.upper() + ': ' + str(cb_1) + ' < ' + str(cb_2)
 		pass		
 
-	def add_reg_and_resolve_constraint (self):
+	def add_reg_and_resolve_constraint (self, consider = None):
+		start = time.time()
 		count = 0
 		for cb in self.cbs.values():
+			#deal with a single test case 
+			if consider != None and cb.asyncId not in consider:
+				continue
 			if not hasattr(cb, 'start'):
 				continue
 			registerLine = str(cb.register) + 'r'
@@ -381,13 +406,19 @@ class Scheduler:
 			#2nd cons: resolve < start
 			self.solver.add(self.grid[resolveLine] < self.grid[start])
 			count += 1
-		print("after r&r: %s num: %s" %(self.check(), count))
+		end = time.time()
+		interval = str(round(end - start))
+		print("after r&r: %s, num: %s, time: %s" %(self.check(), count, interval))
 		pass
 	
-	def add_file_constraint (self):
+	def add_file_constraint (self, consider = None):
+		start = time.time()
 		count = 0
 		async_fs_num = 0
 		for cb in self.cbs.values():
+			#deal with a single test case 
+			if consider != None and cb.asyncId not in consider:
+				continue
 			rcdLinenos = cb.records
 			for lineno in rcdLinenos:
 				rcd = self.records[lineno]
@@ -407,53 +438,73 @@ class Scheduler:
 					self.solver.add(self.grid[rcd.lineno] < self.grid[resolve])
 					count += 1
 					#print("2. file: %s < %s" %(rcd.lineno, rcd.resolve))	
-		print("after file_cons: %s cons_num: %s async_fs_num: %s" %(self.check(), count, async_fs_num))
+		end = time.time()
+		interval = str(round(end - start))
+		print("after file_cons: %s cons_num: %s async_fs_num: %s, time: %s" %(self.check(), count, async_fs_num, interval))
 		pass
 	
-	def fifo (self):
-		count = 0
-		for testcase in self.testsuit.values():
-			cb_num = len(testcase)
-			for i in range(0, cb_num - 1):
-				cbi = self.cbs[testcase[i]]
-				if not hasattr(cbi, 'start'):
+	def fifo (self, consider = None):
+		start = time.time()
+		count = 0	
+		cb_num = len(self.cbs)
+		asyncIds = self.cbs.keys()
+		for i in range(0, cb_num - 1):
+			cbi = self.cbs[asyncIds[i]]
+			#deal with a single test case 
+			if consider != None and cbi.asyncId not in consider:
+				continue
+			if not hasattr(cbi, 'start'):
+				continue
+			triggeri = str(cbi.register) + 'rr'
+			for j in range(i+1, cb_num):
+				cbj = self.cbs[asyncIds[j]]
+				#deal with a single test case 
+				if consider != None and cbj.asyncId not in consider:
 					continue
-				triggeri = str(cbi.register) + 'rr'
-				for j in range(i+1, cb_num):
-					cbj = self.cbs[testcase[j]]
-					if cbj.priority != cbi.priority:
-						continue
-					if not hasattr(cbj, 'start'):
-						continue
-					triggerj = str(cbj.register) + 'rr'
-					self.solver.add(z3.Or(z3.And(self.grid[triggeri] < self.grid[triggerj], self.grid[cbi.start] < self.grid[cbj.start]), z3.And(self.grid[triggeri] > self.grid[triggerj], self.grid[cbi.start] > self.grid[cbj.start])))
-					count += 1
-		print("after fifo: %s num: %s" %(self.check(), count))
+				if cbj.priority != cbi.priority:
+					continue
+				if not hasattr(cbj, 'start'):
+					continue
+				triggerj = str(cbj.register) + 'rr'
+				self.solver.add(z3.Or(z3.And(self.grid[triggeri] < self.grid[triggerj], self.grid[cbi.start] < self.grid[cbj.start]), z3.And(self.grid[triggeri] > self.grid[triggerj], self.grid[cbi.start] > self.grid[cbj.start])))
+				count += 1
+		end = time.time()
+		interval = str(round(end - start))
+		print("after fifo: %s num: %s, time: %s" %(self.check(), count, interval))
 		pass
 
-	def diffQ (self):
+	def diffQ (self, consider = None):
+		start = time.time()
 		count = 0
-		for testcase in self.testsuit.values():
-			cb_num = len(testcase)
-			for i in range(0, cb_num - 1):
-				cbi = self.cbs[testcase[i]]
-				if cbi.priority != 1:
+		cb_num = len(self.cbs)
+		asyncIds = self.cbs.keys()	
+		for i in range(0, cb_num - 1):
+			cbi = self.cbs[asyncIds[i]]
+			#deal with a single test case 
+			if consider != None and cbi.asyncId not in consider:
+				continue	
+			if cbi.priority != 1:
+				continue
+			if not hasattr(cbi, 'start'):
+				continue
+			triggeri = str(cbi.register) + 'rr'
+			starti = cbi.start
+			for j in range(i+1, cb_num):
+				cbj = self.cbs[asyncIds[j]]
+				#deal with a single test case 
+				if consider != None and cbj.asyncId not in consider:
 					continue
-				if not hasattr(cbi, 'start'):
+				if cbj.priority == 1:
 					continue
-				triggeri = str(cbi.register) + 'rr'
-				starti = cbi.start
-				for j in range(i+1, cb_num):
-					cbj = self.cbs[testcase[j]]
-					if cbj.priority != 1:
-						continue
-					if not hasattr(cbj, 'start'):
-						continue
-					triggerj = str(cbj.register) + 'rr'
-					startj = cbj.start
-					count += 1
-					self.solver.add(z3.Implies(self.grid[triggeri] < self.grid[startj], self.grid[starti] < self.grid[startj]))	
-		print("after diffQ: %s num: %s" %(self.check(), count))
+				if not hasattr(cbj, 'start'):
+					continue
+				triggerj = str(cbj.register) + 'rr'
+				startj = cbj.start
+				count += 1
+				self.solver.add(z3.Implies(self.grid[triggeri] < self.grid[startj], self.grid[starti] < self.grid[startj]))	
+		end = time.time()
+		interval = str(round(end - start))
+		print("after diffQ: %s num: %s, time: %s" %(self.check(), count, interval))
 		pass
 
 		'''
@@ -738,7 +789,8 @@ class Scheduler:
 			return False
 		pass
 
-	def detect_var_race (self):
+	def detect_var_race (self, consider = None):
+		start = time.time()	
 		print("^^^^^^START DETECT RACE^^^^^^\n")
 		#print("size: %s" %(len(self.variables)))
 		#cache stores the result of two events, i.e., isConcurrent_new_1(), True denotes concurrent
@@ -754,12 +806,14 @@ class Scheduler:
 		ignore_key.append('util')
 		ignore_key.append('compareString')
 		ignore_key.append('ropts')
+		ignore_key.append('last')
+		ignore_key.append('encoding')
 		#print(ignore_key)
-		length = 1
-		bottom = 0
-
+		length = 24
+		bottom = 24
+		countR = 0
 		fp_var_list = list()
-
+		
 		for var in self.variables:
 			RList=self.variables[var]['R']
 			WList=self.variables[var]['W']
@@ -785,13 +839,18 @@ class Scheduler:
 				continue
 			
 				
-			print (var)
-			print('RList: %s' %(len(RList)))
-			print('WList: %s\n\n' %(len(WList)))
+			#print (var)
+			#print('RList: %s' %(len(RList)))
+			#print('WList: %s\n\n' %(len(WList)))
 			
 				
 			count += 1
-			'''	
+			'''
+			if count == 24:
+				print(var)
+				print('RList: %s' %(len(RList)))
+				print('WList: %s\n\n' %(len(WList)))
+				
 			if count < bottom:
 				continue
 			if count > length:
@@ -799,9 +858,13 @@ class Scheduler:
 			'''	
 			#detect W race with W
 			for i in range(0, len(WList) - 1):
-				if not self.records[WList[i]].eid in self.cbs:
+				iEid = self.records[WList[i]].eid
+				#deal with a single test case
+				if consider != None and iEid not in consider:
 					continue
-				if not hasattr(self.cbs[self.records[WList[i]].eid], 'start'):
+				if not iEid in self.cbs:
+					continue
+				if not hasattr(self.cbs[iEid], 'start'):
 					continue
 				for j in range(i+1, len(WList)):
 									
@@ -811,15 +874,20 @@ class Scheduler:
 					#printObj(self.records[WList[j]])
 					#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
 						
-					iEid = self.records[WList[i]].eid
+					if self.records[WList[i]].isDeclaredLocal or self.records[WList[j]].isDeclaredLocal:
+						if var not in fp_var_list:
+							fp_var_list.append(var)
+							continue
+					
 					jEid = self.records[WList[j]].eid
-					res = None
-
+					#deal with a single test case
+					if consider != None and jEid not in consider:
+						continue
 					if not jEid in self.cbs:
 						continue
-					if not hasattr(self.cbs[self.records[WList[j]].eid], 'start'):
+					if not hasattr(self.cbs[jEid], 'start'):
 						continue
-					
+	
 					res = None
 					tpl = [iEid, jEid]
 					tpl.sort()
@@ -836,10 +904,20 @@ class Scheduler:
 
 					if res:
 						race = Race('W_W', self.records[WList[i]], self.records[WList[j]])
-						self.races.append(race)
-
+						if race.footprint not in self.racy_event_pair_cache:
+							self.races.append(race)
+							self.racy_event_pair_cache.append(race.footprint)
+			rCheckcount = 0	
 			#detect W race with R
 			for i in range(0, len(WList)):
+				iEid = self.records[WList[i]].eid
+				#deal with a single test case
+				if consider != None and iEid not in consider:
+					continue
+				if not iEid in self.cbs:
+					continue
+				if not hasattr(self.cbs[iEid], 'start'):
+					continue
 				if not self.records[WList[i]].eid in self.cbs:
 					continue
 				if not hasattr(self.cbs[self.records[WList[i]].eid], 'start'):
@@ -851,19 +929,23 @@ class Scheduler:
 					#print("j:")
 					#printObj(self.records[RList[j]])
 					#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
-					'''	
+						
 					if self.records[WList[i]].isDeclaredLocal or self.records[RList[j]].isDeclaredLocal:
 						if var not in fp_var_list:
 							fp_var_list.append(var)
 							continue
-					'''
+						
+					
+					jEid = self.records[RList[j]].eid
+					#deal with a single test case
+					if consider != None and jEid not in consider:
+						continue
 					if not jEid in self.cbs:
 						continue
-					if not hasattr(self.cbs[self.records[WList[j]].eid], 'start'):
+					if not hasattr(self.cbs[jEid], 'start'):
 						continue
-					iEid = self.records[WList[i]].eid
-					jEid = self.records[RList[j]].eid
 					res = None
+					countR += 1	
 					
 					tpl = [iEid, jEid]
 					tpl.sort()
@@ -872,17 +954,24 @@ class Scheduler:
 					key = smalle + '-' + bige
 					if key in cache:
 						res = cache[key]
+					
 					else:
 						starti = self.cbs[iEid].start
 						startj = self.cbs[jEid].start
+						rCheckcount += 1
 						res = self.isConcurrent_new_1(starti, startj)
 						cache[key] = res
-
+					
 					if res:
 						race = Race('W_R', self.records[WList[i]], self.records[RList[j]])
-						self.races.append(race)
-				
-		print("Detect variable race in %s vars: \n" %(count - len(fp_var_list)))			
+						if race.footprint not in self.racy_event_pair_cache:
+							self.races.append(race)
+							self.racy_event_pair_cache.append(race.footprint)
+		
+		end = time.time()
+		interval = str(round(end - start))
+		print("countR: %s, rCheckcount: %s" %(countR, rCheckcount))
+		print("Detect variable race in %s vars, time: %s \n" %(count - len(fp_var_list), interval))			
 		pass
 	
 	def filter_fp (self):
@@ -968,10 +1057,10 @@ class Scheduler:
 		return rcd2.accessType in _fsPattern[rcd1.accessType]
 		pass
 
-	def detectFileRace (self):
+	def detect_file_race (self, consider = None):
 		
-		print '=======Detect FS Race======'
-		print("before detect file: %s" %(self.check()))
+		#print('=======Detect FS Race======')
+		#print("before detect file: %s" %(self.check()))
 		count = 0
 		'''
 		for f in self.files:
@@ -984,43 +1073,39 @@ class Scheduler:
 		'''
 		for f in self.files:
 			accessList = self.files[f]
-			if len(accessList) < 2:
+			access_num = len(accessList)
+			if access_num < 2:
 				continue
 			#print 'file %s: ' %(f)
-			count += 1
-			for i in range(0, len(accessList) - 1):
-				for j in range(i + 1, len(accessList)):
-					
+			for i in range(0, access_num - 1):
+				rcdi = self.records[accessList[i]]
+				eventi = rcdi.eid
+				#deal with a single test case
+				if consider != None and eventi not in consider:
+					continue
+				for j in range(i + 1, access_num):
+					rcdj = self.records[accessList[j]]
+					eventj = rcdj.eid
 					#print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(i)
 					#printObj(accessList[i])
 					#print '~~~~~~~~~~~~~~accessList[%s] is:~~~~~~~~~~~~~~' %(j)
 					#printObj(accessList[j])
 					
-					if self.records[accessList[i]].isAsync != self.records[accessList[j]].isAsync:
-						#print 'THEY HAVE DIFFERENT ASYNC'
-						continue	
-					elif not self.matchFileRacePattern(self.records[accessList[i]], self.records[accessList[j]]):
+					#deal with a single test case
+					if consider != None and eventj not in consider:
+						continue
+						
+					if not self.matchFileRacePattern(rcdi, rcdj):
 						#print 'NOT MATCH'
 						continue
-					elif self.records[accessList[i]].isAsync == False:
-						if self.records[accessList[i]].eid == self.records[accessList[j]].eid:
-							continue
-						elif not self.cbHappensBefore(self.cbs[self.records[accessList[i]].eid], self.cbs[self.records[accessList[j]].eid]):
-							#print("SYNC AND NOT CONCURRENT")
-							continue
-						else:
-							pattern = self.records[accessList[i]].accessType + '_' +self.records[accessList[j]].accessType
-							race = Race(pattern, self.records[accessList[i]], self.records[accessList[j]])
-							self.races.append(race)
-					elif not self.isConcurrent_new_1(self.records[accessList[i]].lineno, self.records[accessList[j]].lineno):
-						#print 'NOT CONCURRENT'
-						continue
-					else:
-						pattern = self.records[accessList[i]].accessType + '_' +self.records[accessList[j]].accessType
-						race = Race(pattern, self.records[accessList[i]], self.records[accessList[j]])
-						self.races.append(race)	
+
+					if self.isConcurrent_new_1(rcdi.lineno, rcdj.lineno):
+						pattern = rcdi.accessType + '_' + rcdj.accessType
+						race = Race(pattern, rcdi, rcdj)
+						self.races.append(race)		
+						
 			
-		print("Detect file race in %s files: \n" %(count))	
+		#print("Detect file race in %s files: \n" %(file_count))	
 		pass
 
 	def check (self):
@@ -1137,37 +1222,47 @@ class Scheduler:
 		pass
 
 def startDebug(parsedResult, isRace, isChain):
+	startDebugTime = time.time()
 	scheduler=Scheduler(parsedResult)
 	
 	scheduler.filterCbs()
-	scheduler.rm_sync_access_op()
-	
 	scheduler.createOrderVariables()
-		
-	#scheduler.addDistinctConstraint()
+	scheduler.rm_sync_access_op()
+	testcase_count = 0
+	print("TEST CASE NUM: %s" %(len(scheduler.testsuit)))
+	for testcase in scheduler.testsuit.values():
+		testcase_count += 1
+		#if testcase_count != 18:
+			#continue
+		testcaseStart = time.time()
+		print("DEAL WITH TEST CASE:")
+		print(testcase)
+		print("Event num: %s" %(len(testcase)))
+		consider = testcase
+		scheduler.add_atomicity_constraint(consider)
+		scheduler.add_reg_and_resolve_constraint(consider)
+		scheduler.add_file_constraint(consider)
+		scheduler.fifo(consider)
+		scheduler.diffQ(consider)
+		scheduler.detect_var_race(consider)
+		scheduler.detect_file_race(consider)
+		testcaseEnd = time.time()
+		interval = str(round(testcaseEnd - testcaseStart))
+		print("COMPELTE THE TEST CASE TIME: %s\n\n" %(interval))
+		scheduler.empty_constraints()
 	
-	#scheduler.addProgramAtomicityConstraint()
-	scheduler.add_atomicity_constraint()
-	#scheduler.addRegisterandResolveConstraint()
-	scheduler.add_reg_and_resolve_constraint()
-	scheduler.add_file_constraint()
-	scheduler.fifo()
-	scheduler.diffQ()
-	#scheduler.addPriorityConstraint()
-	#scheduler.addFsConstraint()
-	'''		
 	if not isRace:
 		scheduler.addPatternConstraint()
 		scheduler.check()
 		scheduler.printReports()	
 	else:
-		scheduler.detect_var_race()
-		scheduler.filter_fp()
-		#scheduler.addFsConstraint()
+		#scheduler.filter_fp()
 		#scheduler.detectFileRace()
-		scheduler.mergeRace()
+		#scheduler.mergeRace()
 		#scheduler.pass_candidate()
-		scheduler.printRaces(isChain)
-	'''			
+		endDebugTime = time.time()
+		interval = str(round(endDebugTime - startDebugTime))
+		scheduler.printRaces(isChain)	
+		print("Detect time: %s" %(interval))			
 	print '*******END DEBUG*******'
 	pass
