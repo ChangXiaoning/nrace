@@ -10,6 +10,7 @@ import re
 
 import TraceParser
 
+
 class Trace:
     def __init__(self):
 		self.events = list()
@@ -27,10 +28,10 @@ class Trace:
 class Event:
     def __init__(self):
 		self.id = -1
-        self.priority = -1
+		self.priority = -1
 		self.resolve = None
-        self.ops = list()
-        pass
+		self.ops = list()
+		pass
 
     def length(self):
         return len(self.ops)
@@ -45,64 +46,67 @@ class Event:
     def getEnd(self):
         return self.get(self.length())
 
+
 class IOAction:
     def __init__(self):
 		self.registerOp = None
-        self.fileAccessOP = None
-        self.resolveOp = None
-        pass
+		self.fileAccessOP = None
+		self.resolveOp = None
+		pass
+
 
 class RegisterOp:
-    def __init__(self, lineno, resourceType):
-        self.lineno = lineno
-        self.resourceType = resourceType
+    def __init__(self):
+        self.lineno = None
+        self.resourceType = None
         pass
 
+
 class ResolveOp:
-    def __init__(self, lineno, resourceType):
-        self.lineno = lineno
-        self.resourceType = resourceType
+    def __init__(self):
+        self.lineno = None
+        self.resourceType = None
         pass
 
 class DataAccessOp:
-    def __init__(self, lineno, entryType, accessType, accessVar):
-        self.lineno = lineno
-        self.entryType = entryType
-        self.accessType = accessType
-        self.accessVar = accessVar
+    def __init__(self):
+        self.lineno = None
+        self.entryType = None
+        self.accessType = None
+        self.accessVar = None
         pass
 
+
 class FileAccessOp (object):
-    def __init__(self, lineno, entryType, accessType, resource, isAsync):
-        self.lineno = lineno
-        self.entryType = entryType
-        self.accessType = accessType
-        self.accessFile = resource
-        self.isAsync = isAsync
+    def __init__(self):
+        self.lineno = None
+        self.entryType = None
+        self.accessType = None
+        self.accessFile = None
+        self.isAsync = None
         pass
+
 
 def processTraceFile(traceFile):
 	result = TraceParser.processTraceFile(traceFile)
 
 	testsuit = result['testsuit']
-	cbs = parsedResult['cbs']
+	cbs = result['cbs']
 	records = result['records']
-	variables = result['vars']
-	files = result['files']
 
 	lineNo2Ops = dict()
 
-    for testcase in testsuit.values():
+	for testcase in testsuit.values():
 		trace = Trace()
 
-        cbNum = len(testcase)
+		cbNum = len(testcase)
         for i in range(0, cbNum - 1):
-            cb = result.cbs[testcase[i]]
-
+			cb = cbs[testcase[i]]
 			event = Event()
 			event.id = cb.asyncId
-			event.priority = getPriority(cb.resourceType)
-			event.resolve = lineNo2Ops[cb.resolve]
+			event.priority = TraceParser.getPriority(cb.resourceType)
+			if hasattr(cb, 'resolve'):
+				event.resolve = lineNo2Ops[cb.resolve]
 			trace.events.append(event)
 
 			if len(cb.records) == 0:
@@ -110,7 +114,7 @@ def processTraceFile(traceFile):
 
 			rcdList = cb.records
 			for j in range(0, len(rcdList) - 1):
-				record = records[j]
+				record = records[rcdList[j]]
 				if isinstance(record, TraceParser.DataAccessRecord):
 					daOp = DataAccessOp()
 					event.ops.append(daOp)
@@ -134,18 +138,19 @@ def processTraceFile(traceFile):
 
 					lineNo2Ops[record.lineno] = faOp
 
-					#Assume: the registration and resolve operation has been parsed.
-					if (faOp.isAsync):
-						resOp = lineNo2Ops[record.resolve]
-						regOp = lineNo2Ops[record.resolve[:-1]]
-						event.ops.remove(resOp)
-						event.ops.remove(faOp)
-
-						ioAction = IOAction()
-						ioAction.registerOp = regOp
-						ioAction.fileAccessOP = faOp
-						ioAction.resolveOp = resOp
-						trace.ioActions.append(ioAction)
+					# Assume: the registration and resolve operation has been parsed.
+					if faOp.isAsync:
+						try:
+							resOp = lineNo2Ops[record.resolve]
+							regOp = lineNo2Ops[record.resolve[:-1]]
+							ioAction = IOAction()
+							ioAction.registerOp = regOp
+							ioAction.fileAccessOP = faOp
+							ioAction.resolveOp = resOp
+							trace.ioActions.append(ioAction)
+						except KeyError:
+							# Do not know why, there is a error in the trace.
+							print(record.resolve)
 
 				elif isinstance(record, TraceParser.Reg_or_Resolve_Op):
 					rLineno = record.lineno
@@ -157,6 +162,9 @@ def processTraceFile(traceFile):
 						resolveOp.resourceType = record.resourceType
 
 						lineNo2Ops[record.lineno] = resolveOp
+						if rLineno == '27497rr':
+							print("Define 27497rr...")
+							exit
 
 					else: # registration operation
 						registerOp = RegisterOp()
@@ -167,5 +175,5 @@ def processTraceFile(traceFile):
 
 						lineNo2Ops[record.lineno] = registerOp
 
-    exit
-    return result
+	exit
+	return result
