@@ -1,7 +1,7 @@
 import sys
 import os
 import re
-import zzTraceParser
+import TraceParser
 import Logging
 import pprint
 
@@ -25,6 +25,7 @@ def print_obj (obj, fieldList):
 			continue
 		res.append(str(prop)+':'+str(obj.__dict__[prop]))
 	return '{'+', '.join(res)+'}'
+	pass
 
 def printDict (dict):
 	'''print dict <dict> for debug'''
@@ -1135,7 +1136,7 @@ class Scheduler:
 				self.races.pop(i)
 		pass
 
-def startDetect(parsedResult, isRace, isChain):
+def startDebug(parsedResult, isRace, isChain):
 	scheduler=Scheduler(parsedResult)
 	
 	scheduler.filterCbs()
