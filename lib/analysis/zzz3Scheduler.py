@@ -1,7 +1,7 @@
 import sys
 import os
 import re
-import TraceParser
+import zzTraceParser
 import Logging
 import pprint
 
@@ -25,7 +25,6 @@ def print_obj (obj, fieldList):
 			continue
 		res.append(str(prop)+':'+str(obj.__dict__[prop]))
 	return '{'+', '.join(res)+'}'
-	pass
 
 def printDict (dict):
 	'''print dict <dict> for debug'''

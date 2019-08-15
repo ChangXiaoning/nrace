@@ -4,7 +4,7 @@ import os
 import sys
 import pprint
 import time
-import z3Scheduler
+import zzz3Scheduler
 import Logging
 import json
 import re
@@ -34,7 +34,6 @@ def print_obj (obj, fieldList):
 		#print  'prop is: %s (type: %s), obj.__dict__[prop] is: %s (type: %s)' %(prop, type(prop), obj.__dict__[prop], type(obj.__dict__[prop]))
 		res.append(str(prop)+':'+str(obj.__dict__[prop]))
 	return '{'+', '.join(res)+'}'
-	pass
 
 LogEntryType={
 	"DECLARE":0,
@@ -144,15 +143,6 @@ def getPriority(resourceType):
 		return ResourcePriority['Other']
 	pass
 
-class Reg_or_Resolve_Op:
-
-	def __init__ (self, prior, follower, resourceType, lineno):
-		self.prior = prior
-		self.follower = follower
-		self.resourceType = resourceType
-		self.lineno = lineno
-		pass
-
 class Callback:
 
 	def __init__ (self, asyncId, prior, resourceType, hbType, lineno):
@@ -195,7 +185,7 @@ class Callback:
 				print(print_obj(rcd, ['follower', 'prior', 'resourceType', 'lineno']))
 		self.records.append(rcd.lineno)
 		#because we use addRecord() to save Reg_or_Resolve instance, so it can have no attribute 'location'
-		if isinstance(rcd, Reg_or_Resolve_Op):
+		if isinstance(rcd, RegisterOp) or isinstance(rcd, ResolveOp):
 			return
 		#if len(self.records)==1:
 		if self.isOneAccessRecord():
@@ -261,7 +251,6 @@ class CbStack:
 		res = self.script_count
 		self.script_count += 1
 		return str(res) + '-'
-		pass
 
 	def add_in_cb_cache (self, asyncId):
 		self.cb_cache.append(asyncId)
@@ -384,7 +373,6 @@ class FunStack:
 	
 	def top(self):
 		return self.stack[len(self.stack)-1]
-		pass
 
 	def enter(self, iid):
 		self.stack.append(iid)
@@ -406,7 +394,6 @@ class FunStack:
 			return
 		topFunc=self.top()
 		return topFunc+'-'+str(self.counts[topFunc])
-		pass
 
 	def declare(self, name):
 		#print("DECLARE %s" %(name))
@@ -424,8 +411,23 @@ class FunStack:
 		#if name == 'client':
 			#print("Get isDeclaredLocal of var %s: %s" %(name, self.vars[self.getId()].has_key(name)))
 		return self.vars[self.getId()].has_key(name)
+
+class RegisterOp:
+	def __init__ (self, prior, follower, resourceType, lineno):
+		self.prior = prior
+		self.follower = follower
+		self.resourceType = resourceType
+		self.lineno = str(lineno) + 'r'
 		pass
-	
+
+class ResolveOp:
+	def __init__ (self, prior, follower, resourceType, lineno):
+		self.prior = prior
+		self.follower = follower
+		self.resourceType = resourceType
+		self.lineno = str(lineno) + 'rr'
+		pass
+
 class DataAccessRecord:
 
 	count=0	
@@ -447,7 +449,6 @@ class DataAccessRecord:
 
 	def toString (self):
 		return print_obj(self, ['lineno', 'location', 'cbLoc', 'iid', 'accessType', 'logEntryType', 'ref', 'name', 'eid', 'etp'])
-		pass
 
 class FileAccessRecord (object):
 
@@ -465,11 +466,10 @@ class FileAccessRecord (object):
 
 	def getId (self):
 		return self.resource
-		pass
 
 	def toString (self):
 		return print_obj(self, ['lineno', 'entryType', 'accessType', 'resource', 'ref', 'name', 'eid', 'location', 'isAsync'])
-		pass
+		
 '''
 class StartandEndRecord:
 
@@ -525,7 +525,6 @@ class Helper:
 	
 	def getResource (self):
 		return self.latestTargetFile
-		pass
 	
 	def isEnter (self, name):
 		if len(self.stack) == 0:
@@ -547,7 +546,6 @@ class Helper:
 			#if name in _identifier[stop]:
 				#return True
 		return False
-		pass
 
 	def enter (self, fName):
 		self.stack.append(fName)
@@ -558,7 +556,6 @@ class Helper:
 	
 	def isCheck (self):
 		return len(self.stack) == 2
-		pass
 
 	def identify_fs_operation (self):
 		find = None
@@ -579,7 +576,6 @@ class Helper:
 			accessType = 'unknown'
 		self.stack = list()
 		return accessType	
-		pass
 
 def processLine (line):
 
@@ -732,9 +728,9 @@ def processLine (line):
 				lastManualFile = None
 			'''
 			#generate Reg_or_Resolve_Op instance
-			register = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'r')
+			register = RegisterOp(item[3], item[1], item[2], lineno)
 			#if item[2] == 'TickObject' or item[2] == 'Immediate' or item[2] == 'Timeout':
-			resolve = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'rr')
+			resolve = ResolveOp(item[3], item[1], item[2], lineno)
 			if cb.resourceType in ['FSEVENTWRAP', 'FSREQCALLBACK']:
 				lastfsresolve = resolve.lineno
 			#print(cbCtx.cbs)
@@ -765,8 +761,8 @@ def processLine (line):
 		elif itemEntryType==LogEntryType["ASYNC_PROMISERESOLVE"]:	
 			cb=Callback(item[1], item[2], 'RESOLVE', 'resolve', lineno)
 			cbCtx.addCb(cb)
-			register = Reg_or_Resolve_Op(item[2], item[1], 'RESOLVE', str(lineno) + 'r')
-			resolve = Reg_or_Resolve_Op(item[2], item[1], 'RESOLVE', str(lineno) + 'rr')
+			register = RegisterOp(item[2], item[1], 'RESOLVE', lineno)
+			resolve = ResolveOp(item[2], item[1], 'RESOLVE', lineno)
 			cbCtx.cbs[item[2]].addRecord(register)
 			cbCtx.cbs[item[2]].addRecord(resolve)
 			cbCtx.save_register_resolve(register)
@@ -870,7 +866,6 @@ def searchFile (directory, filePrefix):
 			if f.startswith(filePrefix):
 				fileList.append(os.path.join(root, f))
 	return fileList
-	pass
 
 def processTraceFile (traceFile):
 
@@ -917,7 +912,6 @@ def processTraceFile (traceFile):
 	'''
 	print("*******COMPLETE PARSE TRACE*****")
 	return result
-	pass
 
 def main():
 	traceFile=sys.argv[1]

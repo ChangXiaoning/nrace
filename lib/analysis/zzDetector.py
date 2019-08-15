@@ -1,6 +1,5 @@
-import TraceParser
-import z3Scheduler
-import z3Detector
+import zzTraceParser
+import zzz3Scheduler
 
 import sys
 import os
@@ -8,8 +7,8 @@ import os
 lineno = -1
 sourceMap = dict()
 currentSourceFile = None
-cbCtx = TraceParser.CbStack()
-print_obj = TraceParser.print_obj
+cbCtx = zzTraceParser.CbStack()
+print_obj = zzTraceParser.print_obj
 
 def main():
 	traceFile = sys.argv[1]
@@ -43,7 +42,7 @@ def main():
 	#step 3: detect
 	print '*******BEGIN DEBUG*******'
 	#z3Detector.start_detect(parsedResult, isRace, isChain)
-	z3Scheduler.startDebug(parsedResult, isRace, isChain)
+	zzz3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':
