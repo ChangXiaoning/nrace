@@ -110,7 +110,8 @@ def processTraceFile(traceFile):
 			trace.events.append(event)
 
 			if len(cb.records) == 0:
-				event.ops = list()
+				# do not know why
+				continue
 
 			rcdList = cb.records
 			for j in range(0, len(rcdList) - 1):
@@ -171,6 +172,5 @@ def processTraceFile(traceFile):
 						registerOp.resourceType = record.resourceType
 
 						lineNo2Ops[record.lineno] = registerOp
-
 	exit
 	return result
