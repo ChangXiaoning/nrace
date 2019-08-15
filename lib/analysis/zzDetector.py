@@ -24,8 +24,7 @@ def main():
 	parsedResult = zzTraceParser.processTraceFile(traceFile)
 
 	print '*******BEGIN DEBUG*******'
-	#z3Detector.start_detect(parsedResult, isRace, isChain)
-	zzz3Scheduler.startDebug(parsedResult, isRace, isChain)
+	#zzz3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':
