@@ -22,7 +22,6 @@ solver = z3.Solver()
 vars = list()
 op2Var = dict()
 
-
 def buildMhp(trace):
     print('Building must-happen-before...')
     start = time.time()
@@ -76,7 +75,7 @@ def buildMhp(trace):
     # async ios
     for i in range(0, len(trace.ioActions)):
         io = trace.ioActions[i]
-        solver.add(z3.And(op2Var[io.registerOp] < op2Var[io.fileAccessOP], op2Var[io.fileAccessOP] < op2Var[io.resolveOp]))
+        solver.add(z3.And(op2Var[io.registerOp] < op2Var[io.fileAccessOP], op2Var[io.fileAccessOP] < op2Var[io.resolveOp]))   
 
     # fifo, different priority
     for i in range(1, len(trace.events)-1):

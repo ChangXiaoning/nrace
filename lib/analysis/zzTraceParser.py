@@ -132,12 +132,15 @@ def processTraceFile(traceFile):
                         try:
                             resOp = lineNo2Ops[record.resolve]
                             regOp = lineNo2Ops[record.resolve[:-1]]
+
                             ioAction = IOAction()
                             ioAction.registerOp = regOp
                             ioAction.fileAccessOP = faOp
                             ioAction.resolveOp = resOp
+                            event.ops.remove(faOp)
+                            event.ops.remove(resOp)
                             trace.ioActions.append(ioAction)
-                        except KeyError:
+                        except (KeyError, ValueError):
                             # Do not know why, the resolve does not exit.
                             print('Unrecongnized resolve: ' + record.resolve)
 
