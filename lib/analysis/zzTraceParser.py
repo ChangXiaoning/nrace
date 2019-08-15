@@ -53,18 +53,14 @@ class IOAction:
         pass
 
 class RegisterOp:
-    def __init__(self, lineno, prior, follower, resourceType):
+    def __init__(self, lineno, resourceType):
         self.lineno = lineno
-        self.prior = prior
-        self.follower = follower
         self.resourceType = resourceType
         pass
 
 class ResolveOp:
-    def __init__(self, lineno, prior, follower, resourceType):
+    def __init__(self, lineno, resourceType):
         self.lineno = lineno
-        self.prior = prior
-        self.follower = follower
         self.resourceType = resourceType
         pass
 
@@ -83,8 +79,6 @@ class FileAccessOp (object):
         self.accessType = accessType
         self.accessFile = resource
         self.isAsync = isAsync
-		self.register = None
-		self.resolve = None
         pass
 
 def processTraceFile(traceFile):
@@ -160,8 +154,6 @@ def processTraceFile(traceFile):
 						event.ops.append(resolveOp)
 
 						resolveOp.lineno = record.lineno
-						resolveOp.prior = record.prior
-						resolveOp.follower = record.follower
 						resolveOp.resourceType = record.resourceType
 
 						lineNo2Ops[record.lineno] = resolveOp
@@ -171,8 +163,6 @@ def processTraceFile(traceFile):
 						event.ops.append(registerOp)
 
 						registerOp.lineno = record.lineno
-						registerOp.prior = record.prior
-						registerOp.follower = record.follower
 						registerOp.resourceType = record.resourceType
 
 						lineNo2Ops[record.lineno] = registerOp
