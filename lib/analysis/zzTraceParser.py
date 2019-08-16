@@ -1,4 +1,3 @@
-from __future__ import print_function
 import json
 import os
 import sys
@@ -12,143 +11,156 @@ import TraceParser
 
 class Trace:
     def __init__(self):
-		self.events = list()
-		self.libuvIOEvents = list()
-		pass
-
-    def length(self):
-        return len(self.events)
-
-    def get(self, id):
-        assert id >= 1 and id <= self.length(), 'id is out of range.'
-        return self.events[id - 1]
-
+        self.events = list()
+        self.ioActions = list()
+        pass
 
 class Event:
     def __init__(self):
-		self.id = -1
+        self.id = -1
         self.priority = -1
+        self.resolve = None
         self.ops = list()
         pass
 
-    def length(self):
-        return len(self.ops)
-
-    def get(self, id):
-        assert id >= 1 and id <= self.length(), 'id is out of range.'
-        return self.ops[id - 1]
-
     def getStart(self):
-        return self.get(1)
+        return self.ops[0]
 
     def getEnd(self):
-        return self.get(self.length())
+        return self.ops[len(self.ops)-1]
 
-class LibuvIOEvent:
+
+class IOAction:
     def __init__(self):
-        self.fileAccessOP = None
+        self.registerOp = None
+        self.fileAccessOp = None
         self.resolveOp = None
         pass
 
+
 class RegisterOp:
-    def __init__(self, lineno, prior, follower, resourceType):
-        self.lineno = lineno
-        self.prior = prior
-        self.follower = follower
-        self.resourceType = resourceType
+    def __init__(self):
+        self.lineno = None
+        self.resourceType = None
         pass
 
 
 class ResolveOp:
-    def __init__(self, lineno, prior, follower, resourceType):
-        self.lineno = lineno
-        self.prior = prior
-        self.follower = follower
-        self.resourceType = resourceType
+    def __init__(self):
+        self.lineno = None
+        self.resourceType = None
         pass
 
-class DataAccessOP:
-    def __init__(self, lineno, entryType, accessType, accessVar):
-        self.lineno = lineno
-        self.entryType = entryType
-        self.accessType = accessType
-        self.accessVar = accessVar
+
+class DataAccessOp:
+    def __init__(self):
+        self.lineno = None
+        self.entryType = None
+        self.accessType = None
+        self.accessVar = None
         pass
 
-class FileAccessOp (object):
-    def __init__(self, lineno, entryType, accessType, resource, ref, name, isAsync):
-        self.lineno = lineno
-        self.entryType = entryType
-        self.accessType = accessType
-        self.accessFile = resource
-        self.isAsync = isAsync
+class FileAccessOp:
+    def __init__(self):
+        self.lineno = None
+        self.entryType = None
+        self.accessType = None
+        self.accessFile = None
+        self.isAsync = None
         pass
+
 
 def processTraceFile(traceFile):
-	result = TraceParser.processTraceFile(traceFile)
+    result = TraceParser.processTraceFile(traceFile)
 
-	testsuit = result['testsuit']
-	cbs = parsedResult['cbs']
-	records = result['records']
-	variables = result['vars']
-	files = result['files']
+    testsuit = result['testsuit']
+    cbs = result['cbs']
+    records = result['records']
 
+    lineNo2Ops = dict()
+
+    traces = list()
     for testcase in testsuit.values():
-		trace = Trace()
+        trace = Trace()
+        traces.append(trace)
 
         cbNum = len(testcase)
-        for i in range(0, cbNum - 1):
-            cb = result.cbs[testcase[i]]
 
-			event = Event()
-			event.id = cb.asyncId
-			event.priority = getPriority(cb.resourceType)
-			trace.events.append(event)
+        for i in range(0, cbNum):
+            cb = cbs[testcase[i]]
 
-			if len(cb.records) == 0:
-				event.ops = list()
+            if len(cb.records) == 0:
+                # do not know why
+                continue
 
-			rcdList = cb.records
-			for j in range(0, len(rcdList) - 1):
-				record = cb.records[j]
-				if isinstance(record, TraceParser.DataAccessRecord):
-					daOp = DataAccessOP()
-					event.ops.append(daOp)
+            event = Event()
+            event.id = cb.asyncId
+            event.priority = TraceParser.getPriority(cb.resourceType)
+            if hasattr(cb, 'resolve'):
+                event.resolve = lineNo2Ops[cb.resolve]
+            trace.events.append(event)
 
-					daOp.lineno = record.lineno
-					daOp.entryType = record.entryType
-					daOp.accessType = record.accessType
-					daOp.accessVar = record.getId()
+            rcdList = cb.records
+            for j in range(0, len(rcdList) - 1):
+                record = records[rcdList[j]]
+                if isinstance(record, TraceParser.DataAccessRecord):
+                    daOp = DataAccessOp()
+                    event.ops.append(daOp)
 
-				elif isinstance(record, TraceParser.FileAccessRecord):
-					faOp = FileAccessOp()
-					event.ops.append(faOp)
+                    daOp.lineno = record.lineno
+                    daOp.entryType = record.entryType
+                    daOp.accessType = record.accessType
+                    daOp.accessVar = record.getId()
 
-					faOp.lineno = record.lineno
-					faOp.entryType = record.entryType
-					faOp.accessType = record.accessType
-					faOp.accessFile = record.resource
-					faOp.isAsync = record.isAsync
+                    lineNo2Ops[record.lineno] = daOp
 
-				elif isinstance(record, TraceParser.Reg_or_Resolve_Op):
-					rLineno = record.lineno
-					if re.search('rr', rLineno): # resolve operation
-						resolveOp = ResolveOp()
-						event.ops.append(resolveOp)
+                elif isinstance(record, TraceParser.FileAccessRecord):
+                    faOp = FileAccessOp()
+                    event.ops.append(faOp)
 
-						resolveOp.lineno = record.lineno
-						resolveOp.prior = record.prior
-						resolveOp.follower = record.follower
-						resolveOp.resourceType = record.resourceType
+                    faOp.lineno = record.lineno
+                    faOp.entryType = record.entryType
+                    faOp.accessType = record.accessType
+                    faOp.accessFile = record.resource
+                    faOp.isAsync = record.isAsync
 
-					else: # registration operation
-						registerOp = RegisterOp()
-						event.ops.append(registerOp)
+                    lineNo2Ops[record.lineno] = faOp
 
-						registerOp.lineno = record.lineno
-						registerOp.prior = record.prior
-						registerOp.follower = record.follower
-						registerOp.resourceType = record.resourceType
+                    # Assume: the registration and resolve operation has been parsed.
+                    if faOp.isAsync:
+                        try:
+                            resOp = lineNo2Ops[record.resolve]
+                            regOp = lineNo2Ops[record.resolve[:-1]]
 
-    exit
-    return result
+                            ioAction = IOAction()
+                            ioAction.registerOp = regOp
+                            ioAction.fileAccessOp = faOp
+                            ioAction.resolveOp = resOp
+                            event.ops.remove(faOp)
+                            event.ops.remove(resOp)
+                            trace.ioActions.append(ioAction)
+                        except (KeyError, ValueError):
+                            # Do not know why, the resolve does not exit.
+                            print('Unrecongnized resolve: ' + record.resolve)
+
+                elif isinstance(record, TraceParser.Reg_or_Resolve_Op):
+                    rLineno = record.lineno
+                    if re.search('rr', rLineno):  # resolve operation
+                        resolveOp = ResolveOp()
+                        event.ops.append(resolveOp)
+
+                        resolveOp.lineno = record.lineno
+                        resolveOp.resourceType = record.resourceType
+
+                        lineNo2Ops[record.lineno] = resolveOp
+
+                    else:  # registration operation
+                        registerOp = RegisterOp()
+                        event.ops.append(registerOp)
+
+                        registerOp.lineno = record.lineno
+                        registerOp.resourceType = record.resourceType
+
+                        lineNo2Ops[record.lineno] = registerOp
+
+    return traces
