@@ -133,7 +133,7 @@ ResourcePriority={
 	'TickObject':0,
 	'Immediate':1,
 	#regard IMMEDIATE event and TIMEOUT event as same priority event
-	'Timeout':1,
+	'Timeout':2,
 	'Other':3
 }
 
