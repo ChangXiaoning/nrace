@@ -24,7 +24,11 @@ def main():
 	#step 1: parse record into object
 	print '*******BEGIN PARSE TRACE FILE*******'
 	parsedResult = TraceParser.processTraceFile(traceFile)
-	'''		
+	'''
+	for cb in parsedResult['cbs'].values():
+		if cb.asyncId == '1727':
+			print(cb.records)
+			
 	print(parsedResult)
 	for rcd in parsedResult['files'].values():
 		if isinstance(rcd, TraceParser.FileAccessRecord):
@@ -33,8 +37,8 @@ def main():
 	for fileName in parsedResult['files']:
 		print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
 	#print(parsedResult['files'])
-	#print('278')
-	#print(parsedResult['cbs']['278'].records)
+	#print('16')
+	#print(parsedResult['cbs']['16'].records)
 	#print('after parse:\n')
 	#res = map(lambda x: int(x), parsedResult['cbs'].keys())
 	#res.sort()

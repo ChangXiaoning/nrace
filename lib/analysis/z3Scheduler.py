@@ -141,7 +141,7 @@ class Scheduler:
 	def __init__ (self, parsedResult):
 		print("Hello")
 		self.solver=z3.Solver()
-		self.solver.set('timeout', 200)
+		#self.solver.set('timeout', 2500)
 		self.grid=dict()
 		self.cbs=parsedResult['cbs']
 		#print("debug-new scheduler: %s" %(print_obj(self.cbs['39'], ['records'])))
@@ -162,7 +162,7 @@ class Scheduler:
 		#self.solver.reset()
 		self.solver = None
 		self.solver = z3.Solver()
-		self.solver.set('timeout', 200)
+		#self.solver.set('timeout', 2500)
 		pass
 		
 	def filterCbs (self):
@@ -174,11 +174,16 @@ class Scheduler:
 			printObj(cb)
 		'''
 		#To capture the callback chain for file operations, we cannot remove callbacks that have no records
-		'''
+		#remove cb that has not start
+		'''	
 		for cb in cbs.values():
-			if len(cb.records)>0:
+			#if len(cb.records)>0:
+				#continue
+			
+			if hasattr(cb, 'start'):
 				continue
-		
+			print("debug-filter: %s" %(print_obj(cb, ['asyncId', 'prior', 'register'])))
+			print(cb.records)	
 			if cb.prior and cb.prior in cbs and cbs[cb.prior]:
 				#1. remove it in its prior cb 's postCbs
 				for cbList in cbs[cb.prior].postCbs.values():
@@ -186,8 +191,16 @@ class Scheduler:
 						cbList.remove(cb.asyncId)
 						break
 				#2. remove it in its register in prior cb 's instructions 
-				if cb.register in cbs[cb.prior].instructions:
-					cbs[cb.prior].instructions.remove(cb.register)
+				print("cb.prior.records: %s" %(cbs[cb.prior].records))
+				
+				register = str(cb.register) + 'r'
+				resolve = register + 'r'
+				print("register: %s" %(register))
+				print('\n')
+				cbs[cb.prior].records.remove(register)
+				cbs[cb.prior].records.remove(resolve)
+				#if cb.register in cbs[cb.prior].instructions:
+					#cbs[cb.prior].instructions.remove(cb.register)
 			#3. remove it in cbs
 			del cbs[cb.asyncId]
 		'''
@@ -209,7 +222,8 @@ class Scheduler:
 	def createOrderVariables (self):
 		print('^^^^^^CREATE ORDER VARIABLE^^^^^^')
 		count = 0
-		#print("debug-create: 11758 %s" %('11758' in self.cbs))	
+		#print("debug-create: 346 %s" %('346' in self.cbs))	
+		#print(print_obj(self.cbs['346'], ['register', 'start', 'end']))
 		for cb in self.cbs.values():	
 			if hasattr(cb, 'start'):
 				self.grid[cb.start]=z3.Int('Instruction_for_%s' %(cb.start))
@@ -271,11 +285,11 @@ class Scheduler:
 			rcdList = cb.records
 			sync_op = [x for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord)]
 			sync_op_index = [rcdList.index(x) for x in rcdList if isinstance(self.records[x], TraceParser.DataAccessRecord)]
-			#print("1. sync_op: %s" %(sync_op))
-			#print("1. sync_op_index: %s" %(sync_op_index))
+			print("1. sync_op: %s" %(sync_op))
+			print("1. sync_op_index: %s" %(sync_op_index))
 			
 			for i in range(0, len(sync_op_index) - 1):
-				#print("i: %s" %(i))
+				print("i: %s" %(i))
 				if sync_op_index[i] == sync_op_index[i + 1] - 1:
 					continue
 				else:
@@ -285,8 +299,8 @@ class Scheduler:
 				if isinstance(self.records[sync_op[-1]], TraceParser.DataAccessRecord):
 					sync_op.pop()
 			
-			#print("2. sync_op: %s" %(sync_op))
-			#print("2. sync_op_index: %s" %(sync_op_index))
+			print("2. sync_op: %s" %(sync_op))
+			print("2. sync_op_index: %s" %(sync_op_index))
 			for i in range(len(rcdList) - 1, -1, -1):
 				if rcdList[i] in sync_op:
 					rcdList.pop(i)
@@ -308,7 +322,7 @@ class Scheduler:
 				continue
 			if len(cb.records) == 0:
 				continue
-			#print("\n-----cb.records:")
+			#print("\n-----cb.records: %s" %(print_obj(cb, ['start', 'asyncId'])))
 			#print(cb.records)
 			#print("=====debug-ato: asyncId %s" %(cb.asyncId))
 			#print(cb.records)
@@ -319,8 +333,8 @@ class Scheduler:
 			count += 1
 			#print("1. Atomicity: %s == %s - 1" %(cb.start, cb.records[i]))
 			while i < len(cb.records) - 1 and j < len(cb.records):
-				#skip async file op and resolve op
-				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True or type(cb.records[j]) == str and re.search('rr', cb.records[j]):
+				#skip async file op and resolve op and var access (because we do not use the rm_sync_op function)
+				if isinstance(self.records[cb.records[j]], TraceParser.FileAccessRecord) and self.records[cb.records[j]].isAsync == True or type(cb.records[j]) == str and re.search('rr', cb.records[j]) or isinstance(self.records[cb.records[j]], TraceParser.DataAccessRecord):
 					j += 1
 				else:
 					#print("debug-ato: i %s" %(cb.records[i] in self.grid))
@@ -344,7 +358,7 @@ class Scheduler:
 			#print("3. Atomicity: %s == %s - 1" %(cb.records[last], cb.end))
 		#count = 0
 		#print("debug-ato: cbs num %s " %(len(self.cbs)))
-		
+		print("after atomicity: %s, num: %s" %(self.check(), count))	
 		#2nd atomicity constraint
 	
 		asyncIds = self.cbs.keys()
@@ -864,6 +878,8 @@ class Scheduler:
 					continue
 				if not iEid in self.cbs:
 					continue
+				if self.cbs[iEid].resourceType == 'GLOBALCB':
+					continue
 				if not hasattr(self.cbs[iEid], 'start'):
 					continue
 				for j in range(i+1, len(WList)):
@@ -875,15 +891,19 @@ class Scheduler:
 					#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], WList[j])))
 						
 					if self.records[WList[i]].isDeclaredLocal or self.records[WList[j]].isDeclaredLocal:
+						continue
+						'''
 						if var not in fp_var_list:
 							fp_var_list.append(var)
 							continue
-					
+						'''
 					jEid = self.records[WList[j]].eid
 					#deal with a single test case
 					if consider != None and jEid not in consider:
 						continue
 					if not jEid in self.cbs:
+						continue
+					if self.cbs[jEid].resourceType == 'GLOBALCB':
 						continue
 					if not hasattr(self.cbs[jEid], 'start'):
 						continue
@@ -916,6 +936,8 @@ class Scheduler:
 					continue
 				if not iEid in self.cbs:
 					continue
+				if self.cbs[iEid].resourceType == 'GLOBALCB':
+					continue 
 				if not hasattr(self.cbs[iEid], 'start'):
 					continue
 				if not self.records[WList[i]].eid in self.cbs:
@@ -931,12 +953,16 @@ class Scheduler:
 					#print("i & j concurrent: %s" %(self.isConcurrent_new_1(WList[i], RList[j])))
 						
 					if self.records[WList[i]].isDeclaredLocal or self.records[RList[j]].isDeclaredLocal:
+						continue
+						'''
 						if var not in fp_var_list:
 							fp_var_list.append(var)
 							continue
-						
+						'''
 					
 					jEid = self.records[RList[j]].eid
+					if self.cbs[jEid].resourceType == 'GLOBALCB':
+						continue
 					#deal with a single test case
 					if consider != None and jEid not in consider:
 						continue
@@ -1227,7 +1253,7 @@ def startDebug(parsedResult, isRace, isChain):
 	
 	scheduler.filterCbs()
 	scheduler.createOrderVariables()
-	scheduler.rm_sync_access_op()
+	#scheduler.rm_sync_access_op()
 	testcase_count = 0
 	print("TEST CASE NUM: %s" %(len(scheduler.testsuit)))
 	for testcase in scheduler.testsuit.values():
@@ -1235,17 +1261,19 @@ def startDebug(parsedResult, isRace, isChain):
 		#if testcase_count != 18:
 			#continue
 		testcaseStart = time.time()
-		print("DEAL WITH TEST CASE:")
-		print(testcase)
+		#print("DEAL WITH TEST CASE:")
+		#print(testcase)
 		print("Event num: %s" %(len(testcase)))
 		consider = testcase
 		scheduler.add_atomicity_constraint(consider)
+			
 		scheduler.add_reg_and_resolve_constraint(consider)
 		scheduler.add_file_constraint(consider)
 		scheduler.fifo(consider)
 		scheduler.diffQ(consider)
 		scheduler.detect_var_race(consider)
 		scheduler.detect_file_race(consider)
+		
 		testcaseEnd = time.time()
 		interval = str(round(testcaseEnd - testcaseStart))
 		print("COMPELTE THE TEST CASE TIME: %s\n\n" %(interval))

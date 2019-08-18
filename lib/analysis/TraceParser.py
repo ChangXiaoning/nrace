@@ -191,8 +191,9 @@ class Callback:
 		pass
 
 	def addRecord (self, rcd):	
-		if rcd.lineno == '11758r':
-				print(print_obj(rcd, ['follower', 'prior', 'resourceType', 'lineno']))
+		
+		#if rcd.lineno == '11758r':
+			#print(print_obj(rcd, ['follower', 'prior', 'resourceType', 'lineno']))
 		self.records.append(rcd.lineno)
 		#because we use addRecord() to save Reg_or_Resolve instance, so it can have no attribute 'location'
 		if isinstance(rcd, Reg_or_Resolve_Op):
@@ -201,6 +202,12 @@ class Callback:
 		if self.isOneAccessRecord():
 			self.location=rcd.location
 		#self.addInstruction(rcd.lineno)
+		'''		
+		if self.asyncId == '16':
+			print('++++++++++++++++++debug-addRecord:')
+			print("records: %s" %(self.records))
+			print("current lineno: %s" %(rcd.lineno))
+		'''
 		pass
 
 	def getCbLoc (self):
@@ -613,7 +620,7 @@ def processLine (line):
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
 		
-		if lineno == 2133:
+		if lineno == 8546:
 			print(lineno)
 			print('======line is: %s' %(line))
 	
@@ -722,6 +729,7 @@ def processLine (line):
 				#if lineno == 1368:
 					#print(print_obj(record, ['lineno', 'cb', 'isAsync', 'register', 'resolve', 'eid']))
 		elif itemEntryType==LogEntryType["ASYNC_INIT"]:	
+		
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
 			if cb.asyncId == '11758':
@@ -747,8 +755,8 @@ def processLine (line):
 				cbCtx.cbs[item[3]].addRecord(resolve)
 				cbCtx.save_register_resolve(register)
 				cbCtx.save_register_resolve(resolve)
-				'''
-				if lineno == 1955:
+				'''	
+				if lineno == 8546:
 					print("debug records for 39: %s %s" %(cbCtx.cbs[item[3]].asyncId, cbCtx.cbs[item[3]].records))
 					print(item[3])
 				'''
@@ -763,17 +771,26 @@ def processLine (line):
 		elif itemEntryType==LogEntryType["ASYNC_AFTER"]:
 			cbCtx.exit(item[1], lineno)	
 		elif itemEntryType==LogEntryType["ASYNC_PROMISERESOLVE"]:	
-			cb=Callback(item[1], item[2], 'RESOLVE', 'resolve', lineno)
-			cbCtx.addCb(cb)
-			register = Reg_or_Resolve_Op(item[2], item[1], 'RESOLVE', str(lineno) + 'r')
-			resolve = Reg_or_Resolve_Op(item[2], item[1], 'RESOLVE', str(lineno) + 'rr')
-			cbCtx.cbs[item[2]].addRecord(register)
-			cbCtx.cbs[item[2]].addRecord(resolve)
-			cbCtx.save_register_resolve(register)
-			cbCtx.save_register_resolve(resolve)
-			if cb.asyncId == '11758':
-				print(print_obj(cb, ['asyncId', 'prior', 'lineno']))
+			if item[1] not in cbCtx.cbs:
+				cb=Callback(item[1], item[2], 'RESOLVE', 'resolve', lineno)
+				cbCtx.addCb(cb)
+				register = Reg_or_Resolve_Op(item[2], item[1], 'RESOLVE', str(lineno) + 'r')
+				resolve = Reg_or_Resolve_Op(item[2], item[1], 'RESOLVE', str(lineno) + 'rr')
+				if item[2] in cbCtx.cbs:	
+					cbCtx.cbs[item[2]].addRecord(register)
+					cbCtx.cbs[item[2]].addRecord(resolve)
+					cbCtx.save_register_resolve(register)
+					cbCtx.save_register_resolve(resolve)
+			'''
+			if lineno == 6292:
+				print('debug-PROMISE: %s' %(cbCtx.cbs[item[2]].records))		
+			if lineno == 6298:
+				print('debug-PROMISE: %s' %(cbCtx.cbs[item[2]].records))
+			#if cb.asyncId == '11758':
+				#print(print_obj(cb, ['asyncId', 'prior', 'lineno']))
+			'''
 		elif itemEntryType==LogEntryType["SCRIPT_ENTER"]:
+			
 			currentSourceFile=item[3]
 			#register: assume asyncId='0', prior=None, hbType='register', resourceType='GLOBALCB' but no constraint
 			#note: asyncId is '1' rather than '0' in order to be the same with the prior cb of callbacks the glocal script registers
@@ -795,6 +812,7 @@ def processLine (line):
 			#cbCtx.save_register_resolve(resolve)
 			#function_enter	
 			funCtx.enter(item[1])
+			
 		elif itemEntryType==LogEntryType["SCRIPT_EXIT"]:
 			#cb after
 			cbCtx.exit('1', lineno)
@@ -880,7 +898,7 @@ def processTraceFile (traceFile):
 	'''
 	#TODO: add python stdout 
 	#print "======Begin to parse the trace file %s" %(traceFile)
-	'''	
+		
 	with open(traceFile) as f:
 		line=f.readline()
 		while line:
@@ -900,7 +918,7 @@ def processTraceFile (traceFile):
 			while line:
 				processLine(line.strip())
 				line = f.readline()
-	
+	'''
 	
 	result=dict()	
 	result['cbs']=cbCtx.cbs
@@ -908,6 +926,10 @@ def processTraceFile (traceFile):
 	result['records']=cbCtx.records
 	result['vars']=cbCtx.vars
 	result['files'] = cbCtx.files
+	
+	#if we only run a test case but not a test suit
+	if len(cbCtx.testsuit) == 0:
+		cbCtx.testsuit[0] = cbCtx.cb_cache
 	result['testsuit'] = cbCtx.testsuit
 	'''
 	print('debug-tracefile: ')
