@@ -225,11 +225,11 @@ class Scheduler:
 		#print("debug-create: 346 %s" %('346' in self.cbs))	
 		#print(print_obj(self.cbs['346'], ['register', 'start', 'end']))
 		for cb in self.cbs.values():	
-			if hasattr(cb, 'start'):
+			if hasattr(cb, 'start'):	
 				self.grid[cb.start]=z3.Int('Instruction_for_%s' %(cb.start))
 				count += 1
 				#self.solver.add(self.grid[cb.start]>0)
-			if hasattr(cb, 'end'):
+			if hasattr(cb, 'end'):	
 				self.grid[cb.end]=z3.Int('Instruction_for_%s' %(cb.end))
 				count += 1
 				#self.solver.add(self.grid[cb.end]>0)
