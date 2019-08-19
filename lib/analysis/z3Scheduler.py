@@ -86,6 +86,7 @@ class Race:
 		self.pattern=pattern
 		self.tuple=[rcd1, rcd2]
 		self.footprint=self.tuple[0].cbLoc+' vs. '+self.tuple[1].cbLoc
+		self.location=self.tuple[0].location+' vs. '+self.tuple[1].location
 		if isinstance(rcd1, TraceParser.DataAccessRecord):
 			self.ref=rcd1.ref
 			self.name=rcd1.name
@@ -153,6 +154,9 @@ class Scheduler:
 		#self.candidates = list()
 		self.races=list()
 		self.racy_event_pair_cache = list()
+		self.racy_location_cache = dict()
+		self.test_file_name = list()
+		self.test_file_name.append("Store.spec_orig_.js")
 		self.consNumber = 0
 		print("Op number: %s" %(len(self.records)))
 		print("Event num: %s" %(len(self.cbs)))
@@ -162,7 +166,7 @@ class Scheduler:
 		#self.solver.reset()
 		self.solver = None
 		self.solver = z3.Solver()
-		self.solver.set('timeout', 2500)
+		self.solver.set('timeout', 5000)
 		pass
 		
 	def filterCbs (self):
@@ -437,8 +441,8 @@ class Scheduler:
 			for lineno in rcdLinenos:
 				rcd = self.records[lineno]
 				if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
-					#print('\n')
-					#print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve', 'cb']))
+					print('\n')
+					print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve', 'cb']))
 					#constraint 1: asynchronous file operation happens after the register of cb
 					#print("register: %s"  %(rcd.register))
 					#print(rcd.register in self.grid)
@@ -822,6 +826,9 @@ class Scheduler:
 		ignore_key.append('ropts')
 		ignore_key.append('last')
 		ignore_key.append('encoding')
+		ignore_key.append('_cache')
+		ignore_key.append('_dir')
+		ignore_key.append('GoodBye')
 		#print(ignore_key)
 		length = 24
 		bottom = 24
@@ -924,9 +931,12 @@ class Scheduler:
 
 					if res:
 						race = Race('W_W', self.records[WList[i]], self.records[WList[j]])
+						
 						if race.footprint not in self.racy_event_pair_cache:
 							self.races.append(race)
 							self.racy_event_pair_cache.append(race.footprint)
+							if race.location not in self.racy_location_cache:
+								self.racy_location_cache[race.location] = False
 			rCheckcount = 0	
 			#detect W race with R
 			for i in range(0, len(WList)):
@@ -993,7 +1003,8 @@ class Scheduler:
 						if race.footprint not in self.racy_event_pair_cache:
 							self.races.append(race)
 							self.racy_event_pair_cache.append(race.footprint)
-		
+							if race.location not in self.racy_location_cache:
+								self.racy_location_cache[race.location] = False	
 		end = time.time()
 		interval = str(round(end - start))
 		print("countR: %s, rCheckcount: %s" %(countR, rCheckcount))
@@ -1129,7 +1140,8 @@ class Scheduler:
 						pattern = rcdi.accessType + '_' + rcdj.accessType
 						race = Race(pattern, rcdi, rcdj)
 						self.races.append(race)		
-						
+						if race.location not in self.racy_location_cache:
+							self.racy_location_cache[race.location] = False	
 			
 		#print("Detect file race in %s files: \n" %(file_count))	
 		pass
@@ -1218,28 +1230,16 @@ class Scheduler:
 		self.ids = list()
 
 		for race in self.races:
-			race.isMerged = False
-			_id = race.footprint + ':' + race.pattern
-			if _id in self.ids:
-				#isMerged = true denotes it will be merged later
+			#race.isMerged = False
+			if self.racy_location_cache[race.location] == True:
 				race.isMerged = True
 			else:
-				for saved_id in self.ids:
-					footprint = saved_id.split(":")[0]
-					pattern = saved_id.split(":")[1]
-					cbLoc1 = footprint.split(' vs. ')[0]
-					#print(footprint.split(' vs. '))
-					if len(footprint.split(' vs. ')) < 2:
-						cbLoc2 = None
-					else:
-						cbLoc2 = footprint.split(' vs. ')[1]
-					
-					if race.pattern == pattern or race.pattern == pattern[::-1]:
-						if race.footprint == footprint or race.footprint == cbLoc2 + ' vs. ' + cbLoc1:	
-							race.isMerged = True
-							break
-				if race.isMerged == False:
-					self.ids.append(_id)
+				race.isMerged = False
+				self.racy_location_cache[race.location] = True	
+			
+			for filename in self.test_file_name:
+				if re.search(filename, race.location):
+					race.isMerged = True	
 
 		for i in range(len(self.races) - 1, -1, -1):
 			if self.races[i].isMerged:
@@ -1248,37 +1248,81 @@ class Scheduler:
 		pass
 
 def startDebug(parsedResult, isRace, isChain):
+	pairTest = False
 	startDebugTime = time.time()
 	scheduler=Scheduler(parsedResult)
 	
 	scheduler.filterCbs()
 	scheduler.createOrderVariables()
 	#scheduler.rm_sync_access_op()
-	testcase_count = 0
-	print("TEST CASE NUM: %s" %(len(scheduler.testsuit)))
-	for testcase in scheduler.testsuit.values():
-		testcase_count += 1
-		if testcase_count != 2:
-			continue
-		testcaseStart = time.time()
-		print("DEAL WITH TEST CASE:")
-		print(testcase)
-		print("Event num: %s" %(len(testcase)))
-		consider = testcase
-		scheduler.add_atomicity_constraint(consider)
+	if pairTest == False:
+		testcase_count = 0
+		print("TEST CASE NUM: %s" %(len(scheduler.testsuit)))
+		for testcase in scheduler.testsuit.values():
+			testcase_count += 1
+			#if testcase_count != 2:
+				#continue
+			testcaseStart = time.time()
+			print("DEAL WITH TEST CASE:")
+			print(testcase)
+			print("Event num: %s" %(len(testcase)))
+			consider = testcase
+			scheduler.add_atomicity_constraint(consider)
 			
-		scheduler.add_reg_and_resolve_constraint(consider)
-		scheduler.add_file_constraint(consider)
+			scheduler.add_reg_and_resolve_constraint(consider)
+			scheduler.add_file_constraint(consider)
 		
-		scheduler.fifo(consider)
-		scheduler.diffQ(consider)
-		scheduler.detect_var_race(consider)
-		scheduler.detect_file_race(consider)
+			scheduler.fifo(consider)
+			scheduler.diffQ(consider)
+			scheduler.detect_var_race(consider)
+			scheduler.detect_file_race(consider)
 		
-		testcaseEnd = time.time()
-		interval = str(round(testcaseEnd - testcaseStart))
-		print("COMPELTE THE TEST CASE TIME: %s\n\n" %(interval))
-		scheduler.empty_constraints()
+			testcaseEnd = time.time()
+			interval = str(round(testcaseEnd - testcaseStart))
+			print("COMPELTE THE TEST CASE TIME: %s\n\n" %(interval))
+			scheduler.empty_constraints()
+	
+	else:
+		print("///////////PAIR TEST//////////")
+		testcase_count = 0
+		tnum = len(scheduler.testsuit)
+		tsc = scheduler.testsuit.keys()
+		print("TEST CASE NUM: %s" %(len(scheduler.testsuit)))
+		for i in range(0, tnum - 1):
+			testcasei = scheduler.testsuit[tsc[i]]
+			
+			print("DEAL WITH TEST CASE:")
+			print(testcasei)
+			print("Event num: %s" %(len(testcasei)))
+
+			consider = testcasei
+			scheduler.add_atomicity_constraint(consider)
+			
+			scheduler.add_reg_and_resolve_constraint(consider)
+			scheduler.add_file_constraint(consider)
+		
+			scheduler.fifo(consider)
+			scheduler.diffQ(consider)
+			for j in range(i+1, tnum):
+				testcasej = scheduler.testsuit[tsc[j]]			
+
+				print("DEAL WITH TEST CASE:")
+				print(testcasej)
+				print("Event num: %s" %(len(testcasej)))
+
+				consider = testcasej
+				scheduler.add_atomicity_constraint(consider)
+			
+				scheduler.add_reg_and_resolve_constraint(consider)
+				scheduler.add_file_constraint(consider)
+		
+				scheduler.fifo(consider)
+				scheduler.diffQ(consider)	
+		
+				scheduler.detect_var_race()
+				scheduler.detect_file_race()	
+				
+				scheduler.empty_constraints()
 	
 	if not isRace:
 		scheduler.addPatternConstraint()
@@ -1287,7 +1331,7 @@ def startDebug(parsedResult, isRace, isChain):
 	else:
 		#scheduler.filter_fp()
 		#scheduler.detectFileRace()
-		#scheduler.mergeRace()
+		scheduler.mergeRace()
 		#scheduler.pass_candidate()
 		endDebugTime = time.time()
 		interval = str(round(endDebugTime - startDebugTime))
