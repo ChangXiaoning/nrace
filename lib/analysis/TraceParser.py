@@ -620,7 +620,7 @@ def processLine (line):
 		#print '%d\r'%(lineno)
 		#print(lineno, end="\r"i)
 		
-		if lineno == 8546:
+		if lineno == 4136:
 			print(lineno)
 			print('======line is: %s' %(line))
 	
@@ -640,9 +640,9 @@ def processLine (line):
 			
 			#check if there is a file operation
 
-			'''
+			
 			if VarAccessType[itemEntryTypeName] == 'R': 
-						
+				'''	
 				if waitingResource:
 					helper.createStream(item[3])
 					#print("Get waitingResource: lineno %s" %(lineno))
@@ -661,9 +661,11 @@ def processLine (line):
 						location = conj.join(sourceMap[item[1]])
 						#it seems no matter if we lose this DataAccessRecord
 						record = FileAccessRecord(lineno, accessType, FileAccessType[accessType], resource, item[2], item[3], cbCtx.top(), location, True)
+						if lineno == 4136:
+							print("1. Find resource %s" %(print_obj(record, ['lineno', 'entryType', 'resource'])))
 						#print("1. Find resource %s" %(resource))
 						record.cb = None
-							
+				'''			
 				if item[3] == 'fs' or item[3] == '_fs2':
 					_fs = True
 				elif _fs:
@@ -689,7 +691,8 @@ def processLine (line):
 						#print("Find type : %s, resource: %s %s %s" %(lastfunName, fileName, isAsync, lineno))
 					#print("Resource %s" %(fileName))
 					record = FileAccessRecord(lineno, fAccessType, FileAccessType[fAccessType], fileName, item[2], lastfunName, cbCtx.top(), location, isAsync)
-					#print("2. Find resource %s" %(fileName))
+					#if lineno == 4136:
+						#print("2. Find resource %s" %(print_obj(record, ['lineno', 'entryType', 'resource'])))
 					#if lineno == 14570:
 						#print(print_obj(record, ['name', 'resource', 'isAsync']))
 					if isAsync == False:
@@ -702,7 +705,7 @@ def processLine (line):
 					#associate source with its stream
 					helper.saveIntoMap(item[3])
 					underSetStream = False
-			'''
+			
 			
 		elif FileAccessType.has_key(itemEntryTypeName):	
 			if item[6] == '1':
@@ -710,7 +713,8 @@ def processLine (line):
 			else:
 				isAsync = False
 			record = FileAccessRecord(lineno, itemEntryTypeName, FileAccessType[itemEntryTypeName], item[1], item[2], item[3], cbCtx.top(), item[5], isAsync)
-			
+			#if lineno == 4136:
+				#print("3. Find resource %s" %(print_obj(record, ['lineno', 'entryType', 'resource'])))	
 			#print("3. Find resource %s" %(item[1]))
 			if record.isAsync == True:
 				#associate asynchronous file operation with its callback
@@ -718,8 +722,9 @@ def processLine (line):
 				#if lineno == 1368:
 					#print(print_obj(record, ['lineno', 'cb', 'isAsync']))
 				#associate the generated Reg_or_Resolve_Op instance with the file operation
-				record.resolve = lastfsresolve
-				associatedCb = cbCtx.cbs[record.cb]
+				record.resolve = str(cbCtx.cbs[record.cb].register) + 'rr' 
+				#record.resolve = lastfsresolve
+				#associatedCb = cbCtx.cbs[record.cb]
 				'''
 				register = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'r')
 				resolve = Reg_or_Resolve_Op(associatedCb.prior, associatedCb.asyncId, associatedCb.resourceType, str(lineno) + 'rr')
@@ -732,13 +737,17 @@ def processLine (line):
 		
 			cb=Callback(item[1], item[3], item[2], 'register', lineno)
 			cbCtx.addCb(cb)
-			if cb.asyncId == '11758':
-				print(print_obj(cb, ['asyncId', 'prior', 'lineno']))
-			'''
+			#if cb.asyncId == '11758':
+				#print(print_obj(cb, ['asyncId', 'prior', 'lineno']))
+			
+			#if cb.asyncId == "169":
+				#print("processLine-debug: %s" %(lastManualFile))
+			#deal with manually identified file access
 			if lastManualFile:
 				cbCtx.records[lastManualFile].cb = item[1]
+				cbCtx.records[lastManualFile].resolve = str(lineno) + 'rr'
 				lastManualFile = None
-			'''
+
 			#generate Reg_or_Resolve_Op instance
 			register = Reg_or_Resolve_Op(item[3], item[1], item[2], str(lineno) + 'r')
 			#if item[2] == 'TickObject' or item[2] == 'Immediate' or item[2] == 'Timeout':

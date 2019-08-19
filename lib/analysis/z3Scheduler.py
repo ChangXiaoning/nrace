@@ -141,7 +141,7 @@ class Scheduler:
 	def __init__ (self, parsedResult):
 		print("Hello")
 		self.solver=z3.Solver()
-		#self.solver.set('timeout', 2500)
+		self.solver.set('timeout', 5000)
 		self.grid=dict()
 		self.cbs=parsedResult['cbs']
 		#print("debug-new scheduler: %s" %(print_obj(self.cbs['39'], ['records'])))
@@ -162,7 +162,7 @@ class Scheduler:
 		#self.solver.reset()
 		self.solver = None
 		self.solver = z3.Solver()
-		#self.solver.set('timeout', 2500)
+		self.solver.set('timeout', 2500)
 		pass
 		
 	def filterCbs (self):
@@ -438,7 +438,7 @@ class Scheduler:
 				rcd = self.records[lineno]
 				if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:	
 					#print('\n')
-					#print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve']))
+					#print(print_obj(rcd, ['lineno', 'isAsync', 'register', 'resolve', 'cb']))
 					#constraint 1: asynchronous file operation happens after the register of cb
 					#print("register: %s"  %(rcd.register))
 					#print(rcd.register in self.grid)
@@ -1258,17 +1258,18 @@ def startDebug(parsedResult, isRace, isChain):
 	print("TEST CASE NUM: %s" %(len(scheduler.testsuit)))
 	for testcase in scheduler.testsuit.values():
 		testcase_count += 1
-		#if testcase_count != 18:
-			#continue
+		if testcase_count != 2:
+			continue
 		testcaseStart = time.time()
-		#print("DEAL WITH TEST CASE:")
-		#print(testcase)
+		print("DEAL WITH TEST CASE:")
+		print(testcase)
 		print("Event num: %s" %(len(testcase)))
 		consider = testcase
 		scheduler.add_atomicity_constraint(consider)
 			
 		scheduler.add_reg_and_resolve_constraint(consider)
 		scheduler.add_file_constraint(consider)
+		
 		scheduler.fifo(consider)
 		scheduler.diffQ(consider)
 		scheduler.detect_var_race(consider)

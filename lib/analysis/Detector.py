@@ -44,7 +44,8 @@ def main():
 		if isinstance(rcd, TraceParser.DataAccessRecord) or isinstance(rcd, TraceParser.FileAccessRecord):
 			access_op += 1
 	print("W-R NUM: %s" %(access_op))
-	#print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
+	for fileName in parsedResult['files']:
+		print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
 	#print(parsedResult['files'])
 	#print('16')
 	#print(parsedResult['cbs']['16'].records)
@@ -56,7 +57,7 @@ def main():
 	#step 3: detect
 	print '*******BEGIN DEBUG*******'
 	#z3Detector.start_detect(parsedResult, isRace, isChain)
-	#z3Scheduler.startDebug(parsedResult, isRace, isChain)
+	z3Scheduler.startDebug(parsedResult, isRace, isChain)
 	pass
 
 if __name__ == '__main__':
