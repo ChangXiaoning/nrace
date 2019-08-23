@@ -40,10 +40,16 @@ def main():
 			e_num += 1
 	print('EVENT NUM: %s' %(e_num))
 	access_op = 0
+	ioAction_num = 0
 	for rcd in parsedResult['records'].values():
-		if isinstance(rcd, TraceParser.DataAccessRecord) or isinstance(rcd, TraceParser.FileAccessRecord):
+		if isinstance(rcd, TraceParser.DataAccessRecord):
 			access_op += 1
+		elif isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == False:
+			access_op += 1
+		if isinstance(rcd, TraceParser.FileAccessRecord) and rcd.isAsync == True:
+			ioAction_num += 1
 	print("W-R NUM: %s" %(access_op))
+	print("IOACITON NUM: %s" %(ioAction_num))
 	for fileName in parsedResult['files']:
 		print("%s: [%s]\n"  %(fileName, len(parsedResult['files'][fileName])))
 	#print(parsedResult['files'])

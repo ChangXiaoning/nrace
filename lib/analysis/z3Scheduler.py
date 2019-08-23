@@ -5,6 +5,7 @@ import TraceParser
 import Logging
 import pprint
 import time
+import datetime
 
 logger=Logging.logger
 #print_obj = TraceParser.print_obj
@@ -142,7 +143,7 @@ class Scheduler:
 	def __init__ (self, parsedResult):
 		print("Hello")
 		self.solver=z3.Solver()
-		self.solver.set('timeout', 5000)
+		self.solver.set('timeout', 2000)
 		self.grid=dict()
 		self.cbs=parsedResult['cbs']
 		#print("debug-new scheduler: %s" %(print_obj(self.cbs['39'], ['records'])))
@@ -166,7 +167,7 @@ class Scheduler:
 		#self.solver.reset()
 		self.solver = None
 		self.solver = z3.Solver()
-		self.solver.set('timeout', 5000)
+		self.solver.set('timeout', 2000)
 		pass
 		
 	def filterCbs (self):
@@ -1249,7 +1250,8 @@ class Scheduler:
 
 def startDebug(parsedResult, isRace, isChain):
 	pairTest = False
-	startDebugTime = time.time()
+	#startDebugTime = time.time()
+	startDebugTime = datetime.datetime.now()
 	scheduler=Scheduler(parsedResult)
 	
 	scheduler.filterCbs()
@@ -1260,8 +1262,8 @@ def startDebug(parsedResult, isRace, isChain):
 		print("TEST CASE NUM: %s" %(len(scheduler.testsuit)))
 		for testcase in scheduler.testsuit.values():
 			testcase_count += 1
-			#if testcase_count != 2:
-				#continue
+			if testcase_count == 18:
+				continue
 			testcaseStart = time.time()
 			print("DEAL WITH TEST CASE:")
 			print(testcase)
@@ -1333,8 +1335,10 @@ def startDebug(parsedResult, isRace, isChain):
 		#scheduler.detectFileRace()
 		scheduler.mergeRace()
 		#scheduler.pass_candidate()
-		endDebugTime = time.time()
-		interval = str(round(endDebugTime - startDebugTime))
+		#endDebugTime = time.time()
+		#interval = str(round(endDebugTime - startDebugTime))
+		endDebugTime = datetime.datetime.now()
+		interval = (endDebugTime - startDebugTime).total_seconds()
 		scheduler.printRaces(isChain)	
 		print("Detect time: %s" %(interval))			
 	print '*******END DEBUG*******'
