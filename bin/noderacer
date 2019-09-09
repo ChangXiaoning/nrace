@@ -1,0 +1,12 @@
+#!/bin/bash
+NODEJS=/usr/bin/nodejs
+NODEFZ=/home/vagrant/work/NodeFz/node
+AVD=/root/Xiaoning/noderacer-0815/noderacer-tool/lib/analysis/cmd.js
+
+#example "runAvdetector cmd"
+
+alias node=$NODEJS
+if test $# -ge 1
+then
+    node --max-old-space-size=8192 --stack-size=16000 $AVD $* 
+fi
