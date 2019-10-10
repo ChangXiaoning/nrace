@@ -6,10 +6,12 @@ alias node=$NODEJS
 
 SOURCE="${BASH_SOURCE[0]}"
 DIR="$( cd "$( dirname "$SOURCE" )" && pwd )"
+#echo ${SOURCE}
+#echo ${DIR}
 
-if test $# -ge 1
-then
-    node --max-old-space-size=8192 --stack-size=16000 $AVD $* 
-fi
+#if test $# -ge 1
+#then
+    #node --max-old-space-size=8192 --stack-size=16000 $AVD $* 
+#fi
 
 node ${DIR}/../driver/cmd.js $@

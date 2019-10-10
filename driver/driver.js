@@ -421,6 +421,7 @@ cb=cb||function () {/*do nothing*/};
  */
 function testDriver (args, cb) {
     cb = cb || function () {/*do nothing*/};
+    console.log('Hi, successfully arrive drive.js!');
 };
 
 /**
@@ -449,6 +450,7 @@ function exec(args, cb) {
             break;
         case 'testdriver':
             testDriver(args.slice(1), cb);
+            break;
         default:
             var msg = 'Surppoted commands:\n' +
                 '   instrument path/to/app  --instrument node.js applications in local filesystems.\n' +

@@ -1,7 +1,7 @@
 var mkdirp = require('mkdirp');
 var path = require('path');
 var fs = require('fs');
-var instAPI = require('./instAPI');
+var instAPI = require('../lib/analysis/instAPI');
 var Q = require('q');
 var argparse = require('argparse');
 var parser = new argparse.ArgumentParser({
@@ -16,10 +16,11 @@ parser.addArgument(['--justGenerate'], { help: "just instrument and generate met
 parser.addArgument(['--verbose'], { help: "print verbose output", action: 'storeTrue' });
 parser.addArgument(['--exclude'], { help: "do not instrument any scripts whose file path contains this substring"});
 parser.addArgument(['inputFile'], { help: "Either a JavaScript file or an HTML app directory with an index.html file" });
-
+console.log('TEST');
 var args = parser.parseArgs();
 var outputDir = args.outputDir;
 var jsFile = !fs.statSync(args.inputFile).isDirectory();
+console.log('jsFile is ', jsFile);
 var promise, trueOutputDir;
 if (jsFile) {
     var script = args.inputFile;
