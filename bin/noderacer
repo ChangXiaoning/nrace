@@ -1,5 +1,5 @@
 #!/bin/bash
-NODEJS=/usr/bin/nodejs
+NODEJS=/usr/local/bin/node
 alias node=$NODEJS
 
 #exampe "./bin/noderacer instrument /path/to/app"
