@@ -415,6 +415,15 @@ cb=cb||function () {/*do nothing*/};
 };
 
 /**
+ * 
+ * @param {*} args 
+ * @param {*} cb 
+ */
+function testDriver (args, cb) {
+    cb = cb || function () {/*do nothing*/};
+};
+
+/**
  * start the relevant servers to proxy and instrument a live web site
  * @param args
  */
@@ -438,6 +447,8 @@ function exec(args, cb) {
         case 'detect':
             detect(args.slice(1),cb);
             break;
+        case 'testdriver':
+            testDriver(args.slice(1), cb);
         default:
             var msg = 'Surppoted commands:\n' +
                 '   instrument path/to/app  --instrument node.js applications in local filesystems.\n' +
