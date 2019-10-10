@@ -1,3 +1,4 @@
 *~
 /lib/analysis/*.swp
 /lib/analysis/*.pyc
+node_modules
