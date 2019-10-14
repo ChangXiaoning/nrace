@@ -57,3 +57,7 @@
 [2019-10-10T23:17:50.574] [INFO] default - instrumenting application: ../evaluation/smallcase/case-1/
 [2019-10-10T23:17:50.574] [INFO] default - run command: node /Users/xiaoningchang/Documents/Code/noderacer/driver/instApp.js --justGenerate --verbose --outputDir ../jalangi-sm ../evaluation/smallcase/case-1/ , desc: instrumentation
 [2019-10-10T23:17:50.811] [INFO] default - instrumentation complete
+[2019-10-14T14:01:52.493] [INFO] default - Running command: instrument --outputDir ../jalangi-sm/ ../evaluation/smallcase/unit/bracketnotation.js
+[2019-10-14T14:01:52.501] [INFO] default - instrumenting application: ../evaluation/smallcase/unit/bracketnotation.js
+[2019-10-14T14:01:52.501] [INFO] default - run command: node /Users/xiaoningchang/Documents/Code/noderacer/driver/instApp.js --justGenerate --verbose --outputDir ../jalangi-sm/ ../evaluation/smallcase/unit/bracketnotation.js , desc: instrumentation
+[2019-10-14T14:01:52.816] [INFO] default - instrumentation complete
