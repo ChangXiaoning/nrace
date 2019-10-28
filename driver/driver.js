@@ -441,7 +441,7 @@ function typeerrorDetect (args, cb) {
     }
     logger.info('inspecting previous run ' + traceFile);
     if(!fs.existsSync(traceFile)){
-        logger.info('path ' + traceFile + " does not exist");
+        logger.error('path ' + traceFile + " does not exist");
         process.exit(1);
     }
     //Ok, we have the trace file. parse it and detect.
