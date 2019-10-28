@@ -445,7 +445,7 @@ function typeerrorDetect (args, cb) {
         process.exit(1);
     }
     //Ok, we have the trace file. parse it and detect.
-    var TraceParser = require('../typeerrorDetect/traceParser.js'),
+    var TraceParser = require('../lib/typeerrorDetect/traceParser.js').TraceParser,
         traceParser = new TraceParser();
     traceParser.parse(traceFile, cb);
     var cb = function () {/*TODO: code cb after completion of parsing */};
@@ -480,6 +480,7 @@ function exec(args, cb) {
             break;
         case 'typeerror':
             typeerrorDetect(args.slice(1), cb);
+            break;
         default:
             var msg = 'Surppoted commands:\n' +
                 '   instrument path/to/app  --instrument node.js applications in local filesystems.\n' +
