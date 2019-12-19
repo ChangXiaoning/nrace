@@ -3,3 +3,4 @@
 /lib/analysis/*.pyc
 node_modules
 application.log
+test*.png
