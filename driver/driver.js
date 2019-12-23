@@ -446,9 +446,16 @@ function typeerrorDetect (args, cb) {
     }
     //Ok, we have the trace file. parse it and detect.
     var TraceParser = require('../lib/typeerrorDetect/traceParser.js').TraceParser,
-        traceParser = new TraceParser();
-    traceParser.parse(traceFile, cb);
-    var cb = function () {/*TODO: code cb after completion of parsing */};
+        Detector = require('../lib/typeerrorDetect/Detector.js').Detector,
+        traceParser = new TraceParser(),
+        detector = new Detector;
+    //traceParser.parse(traceFile, cb);
+    //var cb = function () {/*TODO: code cb after completion of parsing */};
+    traceParser.parse(traceFile, function (result) {
+        detector.detect(result, function (reports) {
+            logger.info('Done detecting undefined bugs');
+        });
+    });
 }
 
 /**
