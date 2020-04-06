@@ -1,0 +1,411 @@
+{
+    "asyncObjects": {
+        "objects": [
+            {
+                "id": "1",
+                "startOp": {
+                    "event": "1",
+                    "lineno": 1
+                }
+            },
+            {
+                "id": "7",
+                "prior": "1",
+                "type": "Timeout",
+                "delayTime": 2,
+                "lineno": 46,
+                "entryType": "ASYNC_INIT_TIMER",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 46
+                },
+                "executionTimes": 2,
+                "startOp": {
+                    "event": "7",
+                    "lineno": 76
+                }
+            },
+            {
+                "id": "8",
+                "prior": "1",
+                "type": "TIMERWRAP",
+                "lineno": 47,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 47
+                },
+                "executionTimes": 2,
+                "startOp": {
+                    "event": "8",
+                    "lineno": 75
+                }
+            },
+            {
+                "id": "9",
+                "prior": "1",
+                "type": "Timeout",
+                "delayTime": 7,
+                "lineno": 55,
+                "entryType": "ASYNC_INIT_TIMER",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 55
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "9",
+                    "lineno": 90
+                }
+            },
+            {
+                "id": "10",
+                "prior": "1",
+                "type": "TIMERWRAP",
+                "lineno": 56,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 56
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "10",
+                    "lineno": 89
+                }
+            },
+            {
+                "id": "11",
+                "prior": "7",
+                "type": "TickObject",
+                "lineno": 67,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "7",
+                    "lineno": 67
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "11",
+                    "lineno": 71
+                }
+            },
+            {
+                "id": "8-2",
+                "prior": "1",
+                "type": "TIMERWRAP",
+                "lineno": 75,
+                "entryType": "START_INSERT",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 47
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "8-2",
+                    "lineno": 75
+                }
+            },
+            {
+                "id": "7-2",
+                "prior": "1",
+                "type": "Timeout",
+                "delayTime": 2,
+                "lineno": 76,
+                "entryType": "START_INSERT",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 46
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "7-2",
+                    "lineno": 76
+                }
+            },
+            {
+                "id": "12",
+                "prior": "7-2",
+                "type": "TickObject",
+                "lineno": 83,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "7",
+                    "lineno": 83
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "12",
+                    "lineno": 87
+                }
+            },
+            {
+                "id": "13",
+                "prior": "9",
+                "type": "TickObject",
+                "lineno": 99,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "9",
+                    "lineno": 99
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "13",
+                    "lineno": 103
+                }
+            },
+            {
+                "id": "14",
+                "prior": "0",
+                "type": "FSREQWRAP",
+                "lineno": 105,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "0",
+                    "lineno": 105
+                },
+                "executionTimes": 0
+            }
+        ]
+    },
+    "relations": {
+        "hb": [
+            {
+                "fore": "1",
+                "later": "7",
+                "type": "registration"
+            },
+            {
+                "fore": "1",
+                "later": "8",
+                "type": "registration"
+            },
+            {
+                "fore": "1",
+                "later": "9",
+                "type": "registration"
+            },
+            {
+                "fore": "1",
+                "later": "10",
+                "type": "registration"
+            },
+            {
+                "fore": "1",
+                "later": "8-2",
+                "type": "registration"
+            },
+            {
+                "fore": "1",
+                "later": "7-2",
+                "type": "registration"
+            },
+            {
+                "fore": "7",
+                "later": "9",
+                "type": "timeout"
+            },
+            {
+                "fore": "9",
+                "later": "13",
+                "type": "registration"
+            },
+            {
+                "fore": "11",
+                "later": "12",
+                "type": "fifo"
+            },
+            {
+                "fore": "11",
+                "later": "13",
+                "type": "fifo"
+            },
+            {
+                "fore": "7-2",
+                "later": "9",
+                "type": "timeout"
+            },
+            {
+                "fore": "7-2",
+                "later": "12",
+                "type": "registration"
+            },
+            {
+                "fore": "12",
+                "later": "13",
+                "type": "fifo"
+            }
+        ],
+        "asyncObjs": {
+            "objects": [
+                {
+                    "id": "1",
+                    "startOp": {
+                        "event": "1",
+                        "lineno": 1
+                    }
+                },
+                {
+                    "id": "7",
+                    "prior": "1",
+                    "type": "Timeout",
+                    "delayTime": 2,
+                    "lineno": 46,
+                    "entryType": "ASYNC_INIT_TIMER",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 46
+                    },
+                    "executionTimes": 2,
+                    "startOp": {
+                        "event": "7",
+                        "lineno": 76
+                    }
+                },
+                {
+                    "id": "8",
+                    "prior": "1",
+                    "type": "TIMERWRAP",
+                    "lineno": 47,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 47
+                    },
+                    "executionTimes": 2,
+                    "startOp": {
+                        "event": "8",
+                        "lineno": 75
+                    }
+                },
+                {
+                    "id": "9",
+                    "prior": "1",
+                    "type": "Timeout",
+                    "delayTime": 7,
+                    "lineno": 55,
+                    "entryType": "ASYNC_INIT_TIMER",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 55
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "9",
+                        "lineno": 90
+                    }
+                },
+                {
+                    "id": "10",
+                    "prior": "1",
+                    "type": "TIMERWRAP",
+                    "lineno": 56,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 56
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "10",
+                        "lineno": 89
+                    }
+                },
+                {
+                    "id": "11",
+                    "prior": "7",
+                    "type": "TickObject",
+                    "lineno": 67,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "7",
+                        "lineno": 67
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "11",
+                        "lineno": 71
+                    }
+                },
+                {
+                    "id": "8-2",
+                    "prior": "1",
+                    "type": "TIMERWRAP",
+                    "lineno": 75,
+                    "entryType": "START_INSERT",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 47
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "8-2",
+                        "lineno": 75
+                    }
+                },
+                {
+                    "id": "7-2",
+                    "prior": "1",
+                    "type": "Timeout",
+                    "delayTime": 2,
+                    "lineno": 76,
+                    "entryType": "START_INSERT",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 46
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "7-2",
+                        "lineno": 76
+                    }
+                },
+                {
+                    "id": "12",
+                    "prior": "7-2",
+                    "type": "TickObject",
+                    "lineno": 83,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "7",
+                        "lineno": 83
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "12",
+                        "lineno": 87
+                    }
+                },
+                {
+                    "id": "13",
+                    "prior": "9",
+                    "type": "TickObject",
+                    "lineno": 99,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "9",
+                        "lineno": 99
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "13",
+                        "lineno": 103
+                    }
+                },
+                {
+                    "id": "14",
+                    "prior": "0",
+                    "type": "FSREQWRAP",
+                    "lineno": 105,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "0",
+                        "lineno": 105
+                    },
+                    "executionTimes": 0
+                }
+            ]
+        }
+    }
+}
