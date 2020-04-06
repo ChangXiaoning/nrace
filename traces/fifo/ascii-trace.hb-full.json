@@ -1,0 +1,210 @@
+{
+    "asyncObjects": {
+        "objects": [
+            {
+                "id": "1",
+                "startOp": {
+                    "event": "1",
+                    "lineno": 1
+                }
+            },
+            {
+                "id": "7",
+                "prior": "1",
+                "type": "Immediate",
+                "lineno": 50,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 50
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "7",
+                    "lineno": 58
+                }
+            },
+            {
+                "id": "8",
+                "prior": "1",
+                "type": "Immediate",
+                "lineno": 53,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 53
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "8",
+                    "lineno": 67
+                }
+            },
+            {
+                "id": "9",
+                "prior": "7",
+                "type": "TickObject",
+                "lineno": 64,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "7",
+                    "lineno": 64
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "9",
+                    "lineno": 76
+                }
+            },
+            {
+                "id": "10",
+                "prior": "8",
+                "type": "TickObject",
+                "lineno": 73,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "8",
+                    "lineno": 73
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "10",
+                    "lineno": 78
+                }
+            },
+            {
+                "id": "11",
+                "prior": "0",
+                "type": "FSREQWRAP",
+                "lineno": 80,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "0",
+                    "lineno": 80
+                },
+                "executionTimes": 0
+            }
+        ]
+    },
+    "relations": {
+        "hb": [
+            {
+                "fore": "1",
+                "later": "7",
+                "type": "registration"
+            },
+            {
+                "fore": "1",
+                "later": "8",
+                "type": "registration"
+            },
+            {
+                "fore": "7",
+                "later": "8",
+                "type": "fifo"
+            },
+            {
+                "fore": "7",
+                "later": "9",
+                "type": "registration"
+            },
+            {
+                "fore": "8",
+                "later": "10",
+                "type": "registration"
+            },
+            {
+                "fore": "9",
+                "later": "10",
+                "type": "fifo"
+            }
+        ],
+        "asyncObjs": {
+            "objects": [
+                {
+                    "id": "1",
+                    "startOp": {
+                        "event": "1",
+                        "lineno": 1
+                    }
+                },
+                {
+                    "id": "7",
+                    "prior": "1",
+                    "type": "Immediate",
+                    "lineno": 50,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 50
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "7",
+                        "lineno": 58
+                    }
+                },
+                {
+                    "id": "8",
+                    "prior": "1",
+                    "type": "Immediate",
+                    "lineno": 53,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 53
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "8",
+                        "lineno": 67
+                    }
+                },
+                {
+                    "id": "9",
+                    "prior": "7",
+                    "type": "TickObject",
+                    "lineno": 64,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "7",
+                        "lineno": 64
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "9",
+                        "lineno": 76
+                    }
+                },
+                {
+                    "id": "10",
+                    "prior": "8",
+                    "type": "TickObject",
+                    "lineno": 73,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "8",
+                        "lineno": 73
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "10",
+                        "lineno": 78
+                    }
+                },
+                {
+                    "id": "11",
+                    "prior": "0",
+                    "type": "FSREQWRAP",
+                    "lineno": 80,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "0",
+                        "lineno": 80
+                    },
+                    "executionTimes": 0
+                }
+            ]
+        }
+    }
+}
