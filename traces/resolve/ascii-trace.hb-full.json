@@ -1,0 +1,225 @@
+{
+    "asyncObjects": {
+        "objects": [
+            {
+                "id": "1",
+                "startOp": {
+                    "event": "1",
+                    "lineno": 1
+                }
+            },
+            {
+                "id": "7",
+                "prior": "1",
+                "type": "PROMISE",
+                "lineno": 58,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 58
+                },
+                "executionTimes": 0,
+                "startOp": {
+                    "event": "7",
+                    "lineno": 81
+                },
+                "resolved": {
+                    "current": "8",
+                    "trigger": "1",
+                    "lineno": 81
+                }
+            },
+            {
+                "id": "8",
+                "prior": "1",
+                "type": "Immediate",
+                "lineno": 62,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "1",
+                    "lineno": 62
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "8",
+                    "lineno": 74
+                }
+            },
+            {
+                "id": "9",
+                "prior": "7",
+                "type": "PROMISE",
+                "lineno": 69,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "7",
+                    "lineno": 69
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "9",
+                    "lineno": 95
+                },
+                "resolved": {
+                    "current": "9",
+                    "trigger": "7",
+                    "lineno": 95
+                }
+            },
+            {
+                "id": "10",
+                "prior": "8",
+                "type": "TickObject",
+                "lineno": 83,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "8",
+                    "lineno": 83
+                },
+                "executionTimes": 1,
+                "startOp": {
+                    "event": "10",
+                    "lineno": 86
+                }
+            },
+            {
+                "id": "11",
+                "prior": "0",
+                "type": "FSREQWRAP",
+                "lineno": 97,
+                "entryType": "ASYNC_INIT",
+                "registerOp": {
+                    "event": "0",
+                    "lineno": 97
+                },
+                "executionTimes": 0
+            }
+        ]
+    },
+    "relations": {
+        "hb": [
+            {
+                "fore": "1",
+                "later": "7",
+                "type": "registration"
+            },
+            {
+                "fore": "1",
+                "later": "8",
+                "type": "registration"
+            },
+            {
+                "fore": "7",
+                "later": "9",
+                "type": "registration"
+            },
+            {
+                "fore": "8",
+                "later": "7",
+                "type": "resolve"
+            },
+            {
+                "fore": "8",
+                "later": "10",
+                "type": "registration"
+            }
+        ],
+        "asyncObjs": {
+            "objects": [
+                {
+                    "id": "1",
+                    "startOp": {
+                        "event": "1",
+                        "lineno": 1
+                    }
+                },
+                {
+                    "id": "7",
+                    "prior": "1",
+                    "type": "PROMISE",
+                    "lineno": 58,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 58
+                    },
+                    "executionTimes": 0,
+                    "startOp": {
+                        "event": "7",
+                        "lineno": 81
+                    },
+                    "resolved": {
+                        "current": "8",
+                        "trigger": "1",
+                        "lineno": 81
+                    }
+                },
+                {
+                    "id": "8",
+                    "prior": "1",
+                    "type": "Immediate",
+                    "lineno": 62,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "1",
+                        "lineno": 62
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "8",
+                        "lineno": 74
+                    }
+                },
+                {
+                    "id": "9",
+                    "prior": "7",
+                    "type": "PROMISE",
+                    "lineno": 69,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "7",
+                        "lineno": 69
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "9",
+                        "lineno": 95
+                    },
+                    "resolved": {
+                        "current": "9",
+                        "trigger": "7",
+                        "lineno": 95
+                    }
+                },
+                {
+                    "id": "10",
+                    "prior": "8",
+                    "type": "TickObject",
+                    "lineno": 83,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "8",
+                        "lineno": 83
+                    },
+                    "executionTimes": 1,
+                    "startOp": {
+                        "event": "10",
+                        "lineno": 86
+                    }
+                },
+                {
+                    "id": "11",
+                    "prior": "0",
+                    "type": "FSREQWRAP",
+                    "lineno": 97,
+                    "entryType": "ASYNC_INIT",
+                    "registerOp": {
+                        "event": "0",
+                        "lineno": 97
+                    },
+                    "executionTimes": 0
+                }
+            ]
+        }
+    }
+}
