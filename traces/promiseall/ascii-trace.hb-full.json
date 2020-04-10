@@ -5,7 +5,7 @@
                 "id": "1",
                 "startOp": {
                     "event": "1",
-                    "lineno": 1
+                    "lineno": 104
                 }
             },
             {
@@ -19,10 +19,6 @@
                     "lineno": 69
                 },
                 "executionTimes": 0,
-                "startOp": {
-                    "event": "7",
-                    "lineno": 70
-                },
                 "resolved": {
                     "current": "1",
                     "trigger": "0",
@@ -40,10 +36,6 @@
                     "lineno": 76
                 },
                 "executionTimes": 0,
-                "startOp": {
-                    "event": "8",
-                    "lineno": 124
-                },
                 "resolved": {
                     "current": "9",
                     "trigger": "1",
@@ -64,7 +56,7 @@
                 "executionTimes": 1,
                 "startOp": {
                     "event": "9",
-                    "lineno": 123
+                    "lineno": 124
                 }
             },
             {
@@ -110,10 +102,6 @@
                     "lineno": 101
                 },
                 "executionTimes": 0,
-                "startOp": {
-                    "event": "12",
-                    "lineno": 128
-                },
                 "resolved": {
                     "current": "16",
                     "trigger": "8",
@@ -152,10 +140,6 @@
                     "lineno": 103
                 },
                 "executionTimes": 0,
-                "startOp": {
-                    "event": "14",
-                    "lineno": 104
-                },
                 "resolved": {
                     "current": "1",
                     "trigger": "0",
@@ -196,7 +180,7 @@
                 "executionTimes": 1,
                 "startOp": {
                     "event": "16",
-                    "lineno": 127
+                    "lineno": 128
                 },
                 "resolved": {
                     "current": "16",
@@ -309,27 +293,7 @@
             },
             {
                 "fore": "11",
-                "later": "8",
-                "type": "diffQ"
-            },
-            {
-                "fore": "11",
-                "later": "9",
-                "type": "diffQ"
-            },
-            {
-                "fore": "11",
-                "later": "10",
-                "type": "diffQ"
-            },
-            {
-                "fore": "11",
-                "later": "12",
-                "type": "diffQ"
-            },
-            {
-                "fore": "11",
-                "later": "13",
+                "later": "1",
                 "type": "diffQ"
             },
             {
@@ -374,7 +338,7 @@
                     "id": "1",
                     "startOp": {
                         "event": "1",
-                        "lineno": 1
+                        "lineno": 104
                     }
                 },
                 {
@@ -388,10 +352,6 @@
                         "lineno": 69
                     },
                     "executionTimes": 0,
-                    "startOp": {
-                        "event": "7",
-                        "lineno": 70
-                    },
                     "resolved": {
                         "current": "1",
                         "trigger": "0",
@@ -409,10 +369,6 @@
                         "lineno": 76
                     },
                     "executionTimes": 0,
-                    "startOp": {
-                        "event": "8",
-                        "lineno": 124
-                    },
                     "resolved": {
                         "current": "9",
                         "trigger": "1",
@@ -433,7 +389,7 @@
                     "executionTimes": 1,
                     "startOp": {
                         "event": "9",
-                        "lineno": 123
+                        "lineno": 124
                     }
                 },
                 {
@@ -479,10 +435,6 @@
                         "lineno": 101
                     },
                     "executionTimes": 0,
-                    "startOp": {
-                        "event": "12",
-                        "lineno": 128
-                    },
                     "resolved": {
                         "current": "16",
                         "trigger": "8",
@@ -521,10 +473,6 @@
                         "lineno": 103
                     },
                     "executionTimes": 0,
-                    "startOp": {
-                        "event": "14",
-                        "lineno": 104
-                    },
                     "resolved": {
                         "current": "1",
                         "trigger": "0",
@@ -565,7 +513,7 @@
                     "executionTimes": 1,
                     "startOp": {
                         "event": "16",
-                        "lineno": 127
+                        "lineno": 128
                     },
                     "resolved": {
                         "current": "16",
@@ -632,6 +580,7 @@
                 "15",
                 "16"
             ]
-        ]
+        ],
+        "promiseRaceSet": []
     }
 }

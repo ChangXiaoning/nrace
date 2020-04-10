@@ -22,7 +22,7 @@
                 "executionTimes": 2,
                 "startOp": {
                     "event": "7",
-                    "lineno": 76
+                    "lineno": 60
                 }
             },
             {
@@ -38,7 +38,7 @@
                 "executionTimes": 2,
                 "startOp": {
                     "event": "8",
-                    "lineno": 75
+                    "lineno": 59
                 }
             },
             {
@@ -130,7 +130,7 @@
                 "lineno": 83,
                 "entryType": "ASYNC_INIT",
                 "registerOp": {
-                    "event": "7",
+                    "event": "7-2",
                     "lineno": 83
                 },
                 "executionTimes": 1,
@@ -207,18 +207,33 @@
                 "type": "timeout"
             },
             {
+                "fore": "7",
+                "later": "11",
+                "type": "registration"
+            },
+            {
+                "fore": "7",
+                "later": "7-2",
+                "type": "interval"
+            },
+            {
                 "fore": "9",
                 "later": "13",
                 "type": "registration"
             },
             {
                 "fore": "11",
-                "later": "12",
-                "type": "fifo"
+                "later": "9",
+                "type": "diffQ"
             },
             {
                 "fore": "11",
-                "later": "13",
+                "later": "7-2",
+                "type": "diffQ"
+            },
+            {
+                "fore": "11",
+                "later": "12",
                 "type": "fifo"
             },
             {
@@ -233,8 +248,8 @@
             },
             {
                 "fore": "12",
-                "later": "13",
-                "type": "fifo"
+                "later": "9",
+                "type": "diffQ"
             }
         ],
         "asyncObjs": {
@@ -260,7 +275,7 @@
                     "executionTimes": 2,
                     "startOp": {
                         "event": "7",
-                        "lineno": 76
+                        "lineno": 60
                     }
                 },
                 {
@@ -276,7 +291,7 @@
                     "executionTimes": 2,
                     "startOp": {
                         "event": "8",
-                        "lineno": 75
+                        "lineno": 59
                     }
                 },
                 {
@@ -368,7 +383,7 @@
                     "lineno": 83,
                     "entryType": "ASYNC_INIT",
                     "registerOp": {
-                        "event": "7",
+                        "event": "7-2",
                         "lineno": 83
                     },
                     "executionTimes": 1,
@@ -406,6 +421,8 @@
                     "executionTimes": 0
                 }
             ]
-        }
+        },
+        "promiseAllSet": [],
+        "promiseRaceSet": []
     }
 }

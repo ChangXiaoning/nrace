@@ -114,11 +114,6 @@
                 "type": "registration"
             },
             {
-                "fore": "8",
-                "later": "9",
-                "type": "fifo"
-            },
-            {
                 "fore": "9",
                 "later": "7",
                 "type": "diffQ"
@@ -210,6 +205,8 @@
                     "executionTimes": 0
                 }
             ]
-        }
+        },
+        "promiseAllSet": [],
+        "promiseRaceSet": []
     }
 }

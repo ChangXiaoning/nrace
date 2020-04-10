@@ -159,8 +159,8 @@
             },
             {
                 "fore": "11",
-                "later": "12",
-                "type": "fifo"
+                "later": "9",
+                "type": "diffQ"
             }
         ],
         "asyncObjs": {
@@ -283,6 +283,8 @@
                     "executionTimes": 0
                 }
             ]
-        }
+        },
+        "promiseAllSet": [],
+        "promiseRaceSet": []
     }
 }

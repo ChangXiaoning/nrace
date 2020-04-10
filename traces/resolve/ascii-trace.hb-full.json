@@ -19,10 +19,6 @@
                     "lineno": 58
                 },
                 "executionTimes": 0,
-                "startOp": {
-                    "event": "7",
-                    "lineno": 81
-                },
                 "resolved": {
                     "current": "8",
                     "trigger": "1",
@@ -42,7 +38,7 @@
                 "executionTimes": 1,
                 "startOp": {
                     "event": "8",
-                    "lineno": 74
+                    "lineno": 81
                 }
             },
             {
@@ -58,7 +54,7 @@
                 "executionTimes": 1,
                 "startOp": {
                     "event": "9",
-                    "lineno": 95
+                    "lineno": 88
                 },
                 "resolved": {
                     "current": "9",
@@ -122,6 +118,11 @@
                 "fore": "8",
                 "later": "10",
                 "type": "registration"
+            },
+            {
+                "fore": "10",
+                "later": "9",
+                "type": "diffQ"
             }
         ],
         "asyncObjs": {
@@ -144,10 +145,6 @@
                         "lineno": 58
                     },
                     "executionTimes": 0,
-                    "startOp": {
-                        "event": "7",
-                        "lineno": 81
-                    },
                     "resolved": {
                         "current": "8",
                         "trigger": "1",
@@ -167,7 +164,7 @@
                     "executionTimes": 1,
                     "startOp": {
                         "event": "8",
-                        "lineno": 74
+                        "lineno": 81
                     }
                 },
                 {
@@ -183,7 +180,7 @@
                     "executionTimes": 1,
                     "startOp": {
                         "event": "9",
-                        "lineno": 95
+                        "lineno": 88
                     },
                     "resolved": {
                         "current": "9",
@@ -220,6 +217,8 @@
                     "executionTimes": 0
                 }
             ]
-        }
+        },
+        "promiseAllSet": [],
+        "promiseRaceSet": []
     }
 }
