@@ -424,14 +424,14 @@ function testDriver (args, cb) {
     console.log('Hi, successfully arrive drive.js!');
 };
 
-function typeerrorDetect (args, cb) {
-    logger.info('detect possible TypeError ...');
+function hb (args, cb) {
+    logger.info('build hb graph ...');
     cb = cb || function () {/*do nothing */};
     
     var parser = new argparse.ArgumentParser({
-        prog: 'typeerror inspect',
+        prog: 'undefined race inspect',
         addHelp: true,
-        description: 'detect possible racy typeerror in the given trace'
+        description: 'build hb graph and detect undefined races in the given trace'
     });
     parser.addArgument(['tracefile'], {help: 'the path of analyzed trace'});
     var parsed = parser.parseArgs(args),
@@ -439,24 +439,26 @@ function typeerrorDetect (args, cb) {
     if (!traceFile.endsWith('.log') && traceFile.length<128 && fs.statSync(traceFile).isDirectory()) {
         traceFile=path.resolve(traceFile,'./ascii-trace.log');
     }
-    logger.info('inspecting previous run ' + traceFile);
+    //logger.info('inspecting previous run ' + traceFile);
     if(!fs.existsSync(traceFile)){
         logger.error('path ' + traceFile + " does not exist");
         process.exit(1);
     }
     //Ok, we have the trace file. parse it and detect.
     var TraceParser = require('../lib/typeerrorDetect/traceParser.js').TraceParser,
-        Detector = require('../lib/typeerrorDetect/Detector.js').Detector,
-        traceParser = new TraceParser(),
-        detector = new Detector;
-    //traceParser.parse(traceFile, cb);
-    //var cb = function () {/*TODO: code cb after completion of parsing */};
-    traceParser.parse(traceFile, function (result) {
+        //Detector = require('../lib/typeerrorDetect/Detector.js').Detector,
+        traceParser = new TraceParser();
+        //detector = new Detector;
+    traceParser.parse(traceFile, cb);
+
+    /*traceParser.parse(traceFile, function (result) {
         detector.detect(result, function (reports) {
             logger.info('Done detecting undefined bugs');
         });
-    });
+    });*/
 }
+
+function undefRace () {};
 
 /**
  * start the relevant servers to proxy and instrument a live web site
@@ -485,8 +487,11 @@ function exec(args, cb) {
         case 'testdriver':
             testDriver(args.slice(1), cb);
             break;
-        case 'typeerror':
-            typeerrorDetect(args.slice(1), cb);
+        case 'hb':
+            hb(args.slice(1), cb);
+            break;
+        case 'undefRace':
+            undefRace(args.slice(1), cb);
             break;
         default:
             var msg = 'Surppoted commands:\n' +
@@ -496,7 +501,7 @@ function exec(args, cb) {
                 '   findbug path/to/tracefile   --analyze the trace file to find atomicity violation bugs\n' +
                 '   inspect path/to/tracefile    --inspect result\n'+
                 '   detect path/to/traceFile    --parse the trace file and detect possible atomicity violations or races\n' +
-                '   typeerror path/to/traceFile --parse the trace file and detect possible typeError\n';
+                '   hb path/to/traceFile --parse the trace file and build happens-before graph among events\n';
 
             throw new Error(msg);
     }
