@@ -458,7 +458,27 @@ function hb (args, cb) {
     });*/
 }
 
-function undefRace () {};
+function undefRace (args, cb) {
+    logger.info("Inspecting hb graph and access records ...");
+    cb = cb || function () {/** do nothing */};
+
+    var parser = new argparse.ArgumentParser({
+        prog: 'undefined race inspect',
+        addHelp: true,
+        description: 'detect undefined races based on given hb graph and access records',
+    });
+    parser.addArgument(['tracefile'], {help: "the path of trace file"});
+    var parsed = parser.parseArgs(args),
+        traceFile = parsed.tracefile;
+    if (!traceFile.endsWith('.log') && traceFile.length<128 && fs.statSync(traceFile).isDirectory()) {
+        traceFile=path.resolve(traceFile,'./ascii-trace.log');
+    }
+    //logger.info('inspecting previous run ' + traceFile);
+    if(!fs.existsSync(traceFile)){
+        logger.error('path ' + traceFile + " does not exist");
+        process.exit(1);
+    }
+};
 
 /**
  * start the relevant servers to proxy and instrument a live web site
