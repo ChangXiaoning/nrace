@@ -452,6 +452,7 @@ function detectUndefRace (args, cb) {
     //traceParser.parse(traceFile, cb);
 
     traceParser.parse(traceFile, function (result) {
+        detector.init(result);
         detector.detect(result, function (reports) {
             logger.info('Done detecting undefined bugs');
         });
