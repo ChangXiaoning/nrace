@@ -15,6 +15,7 @@
     "codemirror": "5.1.0",
     "cover": "0.2.9",
     "datatables": "^1.10.18",
+    "easy-monitor": "^2.2.8",
     "ejs": "1.0.0",
     "escope": "1.0.1",
     "esotope": "1.4.5",
