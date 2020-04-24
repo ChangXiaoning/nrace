@@ -7,6 +7,7 @@
     "url": "https://github.com/Samsung/meminsight.git"
   },
   "dependencies": {
+    "@dagrejs/graphlib": "^2.1.4",
     "acorn": "3.1.0",
     "argparse": "0.1.15",
     "aspect-js": "^1.0.3",
