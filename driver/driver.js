@@ -424,8 +424,8 @@ function testDriver (args, cb) {
     console.log('Hi, successfully arrive drive.js!');
 };
 
-function detectUndefRace (args, cb) {
-    logger.info('build hb graph ...');
+function parse (args, cb) {
+    //logger.info('build hb graph ...');
     cb = cb || function () {/*do nothing */};
     
     var parser = new argparse.ArgumentParser({
@@ -452,10 +452,10 @@ function detectUndefRace (args, cb) {
     //traceParser.parse(traceFile, cb);
 
     traceParser.parse(traceFile, function (result) {
-        detector.init(result);
+        /*detector.init(result);
         detector.detect(function (reports) {
             logger.info('Done detecting undefined bugs');
-        });
+        });*/
     });
 }
 
@@ -486,8 +486,8 @@ function exec(args, cb) {
         case 'testdriver':
             testDriver(args.slice(1), cb);
             break;
-        case 'detectUndefRace':
-            detectUndefRace(args.slice(1), cb);
+        case 'parse':
+            parse(args.slice(1), cb);
             break;
         default:
             var msg = 'Surppoted commands:\n' +
@@ -497,7 +497,8 @@ function exec(args, cb) {
                 '   findbug path/to/tracefile   --analyze the trace file to find atomicity violation bugs\n' +
                 '   inspect path/to/tracefile    --inspect result\n'+
                 '   detect path/to/traceFile    --parse the trace file and detect possible atomicity violations or races\n' +
-                '   detectUndefRace path/to/traceFile --parse the trace file and build happens-before graph among events and detect\n';
+                '   parse path/to/traceFile --parse the trace file and build happens-before graph among events\n' +
+                '   detectUndefRace path/to/traceFile --detect undefined race\n';
 
             throw new Error(msg);
     }
