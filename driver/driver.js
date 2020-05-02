@@ -446,9 +446,7 @@ function parse (args, cb) {
     }
     //Ok, we have the trace file. parse it and detect.
     var TraceParser = require('../lib/typeerrorDetect/traceParser.js').TraceParser,
-        Detector = require('../lib/typeerrorDetect/detect/Detector'),
         traceParser = new TraceParser();
-        detector = new Detector(traceFile);
     //traceParser.parse(traceFile, cb);
 
     traceParser.parse(traceFile, function (result) {
@@ -457,6 +455,32 @@ function parse (args, cb) {
             logger.info('Done detecting undefined bugs');
         });*/
     });
+}
+
+function detectUndefRace (args, cb) {
+
+    cb = cb || function () {/*do nothing */};
+
+    var parser = new argparse.ArgumentParser({
+        prog: "undefined race inspect",
+        addHelp: true,
+        description: "detect undefined races"
+    });
+   
+    parser.addArgument(['path'], {
+        help: "directory of instrumented app, which contains parsed hb graph and records"
+    });
+    var parsed = parser.parseArgs(args);
+    var appPath = parsed.path;
+    logger.info("analyzing application: " + appPath);
+    if (!fs.existsSync(appPath)) {
+        logger.error("path " + appPath + " does not exist. Process is exiting...");
+        process.exit(1);
+    }
+
+    var Detector = require('../lib/typeerrorDetect/detect/Detector');
+    var detector = new Detector(appPath);
+    detector.detect(cb);
 }
 
 /**
@@ -488,6 +512,9 @@ function exec(args, cb) {
             break;
         case 'parse':
             parse(args.slice(1), cb);
+            break;
+        case 'detectUndefRace':
+            detectUndefRace(args.slice(1), cb);
             break;
         default:
             var msg = 'Surppoted commands:\n' +
