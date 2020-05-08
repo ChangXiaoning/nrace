@@ -434,8 +434,10 @@ function parse (args, cb) {
         description: 'build hb graph and detect undefined races in the given trace'
     });
     parser.addArgument(['tracefile'], {help: 'the path of analyzed trace'});
+    parser.addArgument(['-g', '--graph'], {action: 'storeTrue'});
     var parsed = parser.parseArgs(args),
-        traceFile = parsed.tracefile;
+        traceFile = parsed.tracefile,
+        graph = parsed.graph;
     if (!traceFile.endsWith('.log') && traceFile.length<128 && fs.statSync(traceFile).isDirectory()) {
         traceFile=path.resolve(traceFile,'./ascii-trace.log');
     }
@@ -449,7 +451,7 @@ function parse (args, cb) {
         traceParser = new TraceParser();
     //traceParser.parse(traceFile, cb);
 
-    traceParser.parse(traceFile, function (result) {
+    traceParser.parse(traceFile, graph, function (result) {
         /*detector.init(result);
         detector.detect(function (reports) {
             logger.info('Done detecting undefined bugs');
