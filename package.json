@@ -53,6 +53,7 @@
     "build": "grunt typescript"
   },
   "devDependencies": {
+    "dfatool": "^0.1.1",
     "grunt-cli": "0.1.13",
     "grunt-exec": "^0.4.6",
     "grunt-simple-mocha": "0.4.0",
