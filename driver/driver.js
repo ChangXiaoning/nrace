@@ -485,6 +485,31 @@ function detectUndefRace (args, cb) {
     detector.detect(cb);
 }
 
+function extractCbInfo (args, cb) {
+    cb = cb || function () {/**do nothing */};
+
+    var parser = new argparse.ArgumentParser({
+        prog: "undefined race inspect",
+        addHelp: true,
+        description: "detect undefined races"
+    });
+   
+    parser.addArgument(['path'], {
+        help: "directory of instrumented app, which contains parsed hb graph and records"
+    });
+    var parsed = parser.parseArgs(args);
+    var appPath = parsed.path;
+    logger.info("analyzing application: " + appPath);
+    if (!fs.existsSync(appPath)) {
+        logger.error("path " + appPath + " does not exist. Process is exiting...");
+        process.exit(1);
+    }
+
+    var CbExtractor = require('../lib/typeerrorDetect/detect/CbExtractor');
+    var extractor = new CbExtractor(appPath);
+    extractor.extract();
+}
+
 /**
  * start the relevant servers to proxy and instrument a live web site
  * @param args
@@ -518,6 +543,9 @@ function exec(args, cb) {
         case 'detectUndefRace':
             detectUndefRace(args.slice(1), cb);
             break;
+        case 'extractCbInfo' :
+            extractCbInfo(args.slice(1), cb);
+            break;
         default:
             var msg = 'Surppoted commands:\n' +
                 '   instrument path/to/app  --instrument node.js applications in local filesystems.\n' +
@@ -527,6 +555,7 @@ function exec(args, cb) {
                 '   inspect path/to/tracefile    --inspect result\n'+
                 '   detect path/to/traceFile    --parse the trace file and detect possible atomicity violations or races\n' +
                 '   parse path/to/traceFile --parse the trace file and build happens-before graph among events\n' +
+                '   extractCbInfo /path/to/traceFile -- callback code from the source \n' +
                 '   detectUndefRace path/to/traceFile --detect undefined race\n';
 
             throw new Error(msg);
