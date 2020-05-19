@@ -532,7 +532,7 @@ function dfanalyze (args, cb) {
 
     var Analyzer = require('../lib/typeerrorDetect/detect/Analyzer');
     var analyzer = new Analyzer(appPath);
-    analyzer.intraEventAnalyze();
+    analyzer.analysis();
 }
 
 /**
