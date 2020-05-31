@@ -530,7 +530,7 @@ function dfanalyze (args, cb) {
         process.exit(1);
     }
 
-    var Analyzer = require('../lib/typeerrorDetect/detect/Analyzer');
+    var Analyzer = require('../lib/typeerrorDetect/detect/TaintAnalyzer');
     var analyzer = new Analyzer(appPath);
     analyzer.analysis();
 }
