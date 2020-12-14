@@ -522,12 +522,22 @@ function dfanalyze (args, cb) {
     parser.addArgument(['path'], {
         help: "directory of instrumented app, which contains parsed hb graph and records"
     });
+    parser.addArgument(['-e', '--eid'], {});
     var parsed = parser.parseArgs(args);
     var appPath = parsed.path;
+    var eid = parsed.eid
     logger.info("analyzing application: " + appPath);
     if (!fs.existsSync(appPath)) {
         logger.error("path " + appPath + " does not exist. Process is exiting...");
         process.exit(1);
+    }
+
+    //console.log('driver: ', eid);
+    var DebugTool = require('../lib/typeerrorDetect/detect/DebugTool');
+    var debugTool = new DebugTool(appPath);
+    if (eid) {
+        debugTool.getCbChain(eid);
+        return;
     }
 
     var Analyzer = require('../lib/typeerrorDetect/detect/TaintAnalyzer');
