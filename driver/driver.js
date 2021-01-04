@@ -523,9 +523,13 @@ function dfanalyze (args, cb) {
         help: "directory of instrumented app, which contains parsed hb graph and records"
     });
     parser.addArgument(['-e', '--eid'], {});
+    parser.addArgument(['--src'], {});
+    parser.addArgument(['--dest'], {});
     var parsed = parser.parseArgs(args);
     var appPath = parsed.path;
     var eid = parsed.eid
+    var src = parsed.src;
+    var dest = parsed.dest;
     logger.info("analyzing application: " + appPath);
     if (!fs.existsSync(appPath)) {
         logger.error("path " + appPath + " does not exist. Process is exiting...");
@@ -533,11 +537,17 @@ function dfanalyze (args, cb) {
     }
 
     //console.log('driver: ', eid);
+    //console.log(src, dest);
     var DebugTool = require('../lib/typeerrorDetect/detect/DebugTool');
     var debugTool = new DebugTool(appPath);
     if (eid) {
         debugTool.getCbChain(eid);
         return;
+    }
+
+    if (src && dest) {
+        debugTool.getCbPath(src, dest);
+        return; 
     }
 
     var Analyzer = require('../lib/typeerrorDetect/detect/TaintAnalyzer');
