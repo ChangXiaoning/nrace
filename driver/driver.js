@@ -558,7 +558,7 @@ function dfanalyze (args, cb) {
 
     if (exp) {
         debugTool.countExperiemtalResult();
-        return;
+        //return;
     }
 
     var start_time = new Date().getTime();
