@@ -525,18 +525,20 @@ function dfanalyze (args, cb) {
     parser.addArgument(['-e', '--eid'], {});
     parser.addArgument(['--src'], {});
     parser.addArgument(['--dest'], {});
+    parser.addArgument(['--exp'], {});
     var parsed = parser.parseArgs(args);
     var appPath = parsed.path;
     var eid = parsed.eid
     var src = parsed.src;
     var dest = parsed.dest;
+    var exp = parsed.exp;
     logger.info("analyzing application: " + appPath);
     if (!fs.existsSync(appPath)) {
         logger.error("path " + appPath + " does not exist. Process is exiting...");
         process.exit(1);
     }
 
-    //console.log('driver: ', eid);
+    //console.log('driver: ', exp);
     //console.log(src, dest);
     var DebugTool = require('../lib/typeerrorDetect/detect/DebugTool');
     var debugTool = new DebugTool(appPath);
@@ -548,6 +550,11 @@ function dfanalyze (args, cb) {
     if (src && dest) {
         debugTool.getCbPath(src, dest);
         return; 
+    }
+
+    if (exp) {
+        debugTool.countExperiemtalResult();
+        return;
     }
 
     var Analyzer = require('../lib/typeerrorDetect/detect/TaintAnalyzer');
