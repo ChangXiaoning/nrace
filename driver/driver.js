@@ -451,11 +451,15 @@ function parse (args, cb) {
         traceParser = new TraceParser();
     //traceParser.parse(traceFile, cb);
 
+    var start_time = new Date().getTime();
     traceParser.parse(traceFile, graph, function (result) {
         /*detector.init(result);
         detector.detect(function (reports) {
             logger.info('Done detecting undefined bugs');
         });*/
+        var end_time = new Date().getTime();
+        var parse_time = (end_time - start_time) / 1000.0;
+        logger.info('Parse time: ' + parse_time);
     });
 }
 
@@ -557,9 +561,13 @@ function dfanalyze (args, cb) {
         return;
     }
 
+    var start_time = new Date().getTime();
     var Analyzer = require('../lib/typeerrorDetect/detect/TaintAnalyzer');
     var analyzer = new Analyzer(appPath);
     analyzer.analysis();
+    var end_time = new Date().getTime();
+    var detect_time = (end_time - start_time) / 1000.0;
+    logger.info('Detect time: ' + detect_time);
 }
 
 /**
