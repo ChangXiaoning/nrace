@@ -1,10 +1,10 @@
 {
-  "name": "meminsight",
+  "name": "NodePredict",
   "version": "0.0.1",
-  "description": "JavaScript memory analyses",
+  "description": "Node.js event race analyses",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Samsung/meminsight.git"
+    "url": "https://github.com/ChangXiaoning/noderacer"
   },
   "dependencies": {
     "@dagrejs/graphlib": "^2.1.4",
