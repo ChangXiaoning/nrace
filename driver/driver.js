@@ -562,7 +562,8 @@ function dfanalyze (args, cb) {
     }
 
     var start_time = new Date().getTime();
-    var Analyzer = require('../lib/typeerrorDetect/detect/TaintAnalyzer');
+    //var Analyzer = require('../lib/typeerrorDetect/detect/TaintAnalyzer');
+    var Analyzer = require('../lib/typeerrorDetect/detect/VCAnalyzer');
     var analyzer = new Analyzer(appPath);
     analyzer.analysis();
     var end_time = new Date().getTime();
