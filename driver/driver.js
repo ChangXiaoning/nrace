@@ -530,12 +530,14 @@ function dfanalyze (args, cb) {
     parser.addArgument(['--src'], {});
     parser.addArgument(['--dest'], {});
     parser.addArgument(['--exp'], {});
+    parser.addArgument(['--cnt'], {});
     var parsed = parser.parseArgs(args);
     var appPath = parsed.path;
     var eid = parsed.eid
     var src = parsed.src;
     var dest = parsed.dest;
     var exp = parsed.exp;
+    var cnt = parsed.cnt;
     logger.info("analyzing application: " + appPath);
     if (!fs.existsSync(appPath)) {
         logger.error("path " + appPath + " does not exist. Process is exiting...");
@@ -558,7 +560,12 @@ function dfanalyze (args, cb) {
 
     if (exp) {
         debugTool.countExperiemtalResult();
-        //return;
+        return;
+    }
+
+    if (cnt) {
+        debugTool.countIdle();
+        return;
     }
 
     var start_time = new Date().getTime();
