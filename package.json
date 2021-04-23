@@ -1,7 +1,7 @@
 {
-  "name": "NodePredict",
+  "name": "NRace",
   "version": "0.0.1",
-  "description": "Node.js event race analyses",
+  "description": "Node.js race analysis",
   "repository": {
     "type": "git",
     "url": "https://github.com/ChangXiaoning/noderacer"
