@@ -435,9 +435,11 @@ function parse (args, cb) {
     });
     parser.addArgument(['tracefile'], {help: 'the path of analyzed trace'});
     parser.addArgument(['-g', '--graph'], {action: 'storeTrue'});
+    parser.addArgument(['-b', '--basic'], {action: 'storeTrue'});
     var parsed = parser.parseArgs(args),
         traceFile = parsed.tracefile,
         graph = parsed.graph;
+    var isBasicAlg = parsed.basic;
     if (!traceFile.endsWith('.log') && traceFile.length<128 && fs.statSync(traceFile).isDirectory()) {
         traceFile=path.resolve(traceFile,'./ascii-trace.log');
     }
@@ -452,7 +454,7 @@ function parse (args, cb) {
     //traceParser.parse(traceFile, cb);
 
     var start_time = new Date().getTime();
-    traceParser.parse(traceFile, graph, function (result) {
+    traceParser.parse(traceFile, graph, isBasicAlg, function (result) {
         /*detector.init(result);
         detector.detect(function (reports) {
             logger.info('Done detecting undefined bugs');
